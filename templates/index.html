@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="tr" data-theme="dark">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=yes"/>
+<title>SalgınTakip KDS v1.5 | Tahmin+Rapor+Etkileşim</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css"/>
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0b0f1a;--surface:#111827;--surface2:#1a2235;--border:#1e2d45;
+  --text:#e2e8f0;--muted:#64748b;--muted2:#94a3b8;
+  --accent:#00d4ff;--accent2:#0ea5e9;--green:#22d3a5;--orange:#f97316;
+  --yellow:#fbbf24;--red:#f43f5e;--purple:#a78bfa;
+  --radius:12px;--sidebar:240px;
+}
+[data-theme="light"]{
+  --bg:#f1f5f9;--surface:#ffffff;--surface2:#f8fafc;--border:#cbd5e1;
+  --text:#0f172a;--muted:#475569;--muted2:#64748b;
+  --accent:#0284c7;--accent2:#0ea5e9;--green:#059669;--orange:#ea580c;
+  --yellow:#d97706;--red:#dc2626;--purple:#7c3aed;
+}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;font-size:13px;display:flex;transition:background .2s}
+
+#sidebar{width:var(--sidebar);min-width:var(--sidebar);height:100vh;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;z-index:10}
+.sb-logo{padding:20px 18px 16px;border-bottom:1px solid var(--border)}
+.sb-logo-inner{display:flex;align-items:center;gap:10px}
+.sb-logo-icon{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#00d4ff22,#0ea5e922);border:1px solid #00d4ff44;display:flex;align-items:center;justify-content:center;font-size:16px}
+.sb-logo-text{line-height:1.2}
+.sb-logo-title{font-size:14px;font-weight:800;color:var(--accent);letter-spacing:-.3px}
+.sb-logo-sub{font-size:10px;color:var(--muted);margin-top:2px}
+.sb-alert{margin:12px;padding:10px 12px;border-radius:8px;background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.25);cursor:pointer}
+.sb-alert-title{font-size:10px;font-weight:700;color:var(--red);letter-spacing:.05em;text-transform:uppercase;display:flex;align-items:center;gap:5px}
+.sb-alert-body{font-size:11px;color:#fca5a5;margin-top:3px;line-height:1.4}
+.sb-nav{flex:1;padding:8px;overflow-y:auto}
+.sb-section{font-size:9px;font-weight:700;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;padding:12px 8px 6px}
+.sb-item{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:8px;color:var(--muted2);cursor:pointer;transition:all .15s;border:1px solid transparent;margin-bottom:1px;font-size:12px;font-weight:500}
+.sb-item:hover{background:rgba(0,212,255,.06);color:var(--text);border-color:transparent}
+.sb-item.active{background:rgba(0,212,255,.1);color:var(--accent);border-color:rgba(0,212,255,.2)}
+.sb-icon{width:16px;height:16px;flex-shrink:0;opacity:.7}
+.sb-item.active .sb-icon{opacity:1}
+.sb-footer{padding:14px;border-top:1px solid var(--border)}
+.sb-footer-uni{font-size:10px;color:var(--muted);line-height:1.5}
+.sb-footer-uni strong{color:var(--muted2)}
+#app{flex:1;display:flex;flex-direction:column;height:100vh;overflow:hidden}
+#topbar{height:52px;min-height:52px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 24px;background:rgba(17,24,39,.8);backdrop-filter:blur(8px);flex-shrink:0}
+#topbar-title{font-size:13px;color:var(--muted2)}
+.topbar-right{display:flex;align-items:center;gap:14px}
+.live-badge{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:var(--green)}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse-dot 2s infinite}
+@keyframes pulse-dot{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(34,211,165,.4)}50%{opacity:.8;box-shadow:0 0 0 5px transparent}}
+.topbar-date{font-size:11px;color:var(--muted)}
+.theme-toggle{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:4px 10px;cursor:pointer;font-size:11px;color:var(--text);transition:all .2s}
+.theme-toggle:hover{background:var(--border)}
+#content{flex:1;overflow-y:auto;padding:20px 24px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.page{display:none}
+.page.active{display:block}
+.page-title{font-size:20px;font-weight:800;color:var(--text);letter-spacing:-.5px}
+.page-sub{font-size:12px;color:var(--muted);margin-top:3px;margin-bottom:20px}
+.alert-banner{display:flex;align-items:flex-start;gap:10px;background:rgba(244,63,94,.08);border:1px solid rgba(244,63,94,.25);border-radius:var(--radius);padding:12px 16px;margin-bottom:18px}
+.alert-banner svg{flex-shrink:0;margin-top:1px}
+.alert-banner p{font-size:12px;color:#fca5a5;line-height:1.5}
+.alert-banner strong{color:var(--red)}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+@media(max-width:1100px){.stats-row{grid-template-columns:repeat(2,1fr)}}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;position:relative;overflow:hidden;transition:border-color .2s}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--c,var(--accent));opacity:.6}
+.stat-card:hover{border-color:var(--border)}
+.stat-lbl{font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.stat-val{font-size:28px;font-weight:800;line-height:1;letter-spacing:-1px;color:var(--c,var(--accent))}
+.stat-icon{position:absolute;top:14px;right:14px;width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,.04);display:flex;align-items:center;justify-content:center;font-size:15px}
+.stat-sub{font-size:11px;color:var(--muted);margin-top:8px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px}
+.card-title{font-size:12px;font-weight:700;color:var(--text);margin-bottom:2px}
+.card-sub{font-size:10px;color:var(--muted);margin-bottom:14px}
+.charts-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px}
+.charts-3{display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px;margin-bottom:18px}
+@media(max-width:900px){.charts-2,.charts-3{grid-template-columns:1fr}}
+.cw{position:relative;height:220px}
+.cw-tall{position:relative;height:280px}
+.leg{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.li{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted2)}
+.ld{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.filter-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;align-items:flex-end}
+.fg{display:flex;flex-direction:column;gap:5px}
+.fg label{font-size:9px;font-weight:700;letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
+.fg select,.fg input{background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:7px;padding:7px 28px 7px 10px;font-size:12px;cursor:pointer;outline:none;min-width:130px;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center}
+.fg select:focus,.fg input:focus{border-color:var(--accent2)}
+.btn-primary{background:var(--accent2);color:#fff;border:none;border-radius:7px;padding:7px 18px;font-size:12px;font-weight:600;cursor:pointer;transition:opacity .15s;align-self:flex-end}
+.btn-primary:hover{opacity:.85}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--muted2);border-radius:7px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:5px}
+.btn-ghost:hover{border-color:var(--accent2);color:var(--accent2)}
+.badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.badge.normal{background:rgba(34,211,165,.12);color:var(--green);border:1px solid rgba(34,211,165,.3)}
+.badge.yuksek{background:rgba(251,191,36,.12);color:var(--yellow);border:1px solid rgba(251,191,36,.3)}
+.badge.kritik{background:rgba(244,63,94,.12);color:var(--red);border:1px solid rgba(244,63,94,.3)}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+thead th{text-align:left;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:0 12px 10px;border-bottom:1px solid var(--border)}
+tbody tr:hover{background:rgba(255,255,255,.02)}
+tbody td{padding:10px 12px;border-bottom:1px solid rgba(30,45,69,.6);color:var(--text);font-size:12px}
+tbody tr:last-child td{border-bottom:none}
+.prog-wrap{display:flex;align-items:center;gap:8px}
+.prog-bar{flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden}
+.prog-fill{height:100%;border-radius:3px;transition:width .5s}
+.prog-pct{font-size:11px;min-width:36px;text-align:right}
+.day-btns{display:flex;gap:4px}
+.day-btn{background:var(--surface2);border:1px solid var(--border);color:var(--muted2);border-radius:6px;padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s}
+.day-btn.active,.day-btn:hover{background:var(--accent2);border-color:var(--accent2);color:#fff}
+.sql-chip{background:rgba(0,0,0,.4);border:1px solid var(--border);border-radius:6px;padding:7px 12px;font-size:11px;color:#7dd3fc;font-family:'Courier New',monospace;margin-top:8px}
+.kap-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(30,45,69,.6)}
+.kap-row:last-child{border-bottom:none}
+.kap-name{min-width:120px;font-size:12px;font-weight:600}
+.pivot-table{width:100%;border-collapse:separate;border-spacing:2px}
+.pivot-table th{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding:4px 8px;text-align:center}
+.pivot-table td{text-align:center;font-size:12px;font-weight:700;padding:8px 10px;border-radius:5px;cursor:default}
+.pivot-table .row-lbl{text-align:left;font-size:11px;color:var(--muted2);font-weight:600;padding-right:12px}
+#overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:49;opacity:0;pointer-events:none;transition:opacity .3s}
+#overlay.open{opacity:1;pointer-events:all}
+.panel{position:fixed;top:0;right:-600px;width:min(580px,94vw);height:100vh;background:var(--surface);border-left:1px solid var(--border);z-index:50;transition:right .35s;display:flex;flex-direction:column}
+.panel.open{right:0}
+.panel-hd{display:flex;align-items:flex-start;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0}
+.panel-hd h2{font-size:14px;font-weight:700}
+.panel-hd p{font-size:11px;color:var(--muted);margin-top:2px}
+.panel-close{background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted2);padding:5px 10px;font-size:12px;cursor:pointer}
+.panel-body{flex:1;overflow-y:auto;padding:16px}
+.schema-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media(max-width:900px){.schema-grid{grid-template-columns:1fr 1fr}}
+.schema-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px}
+.schema-card-title{font-size:11px;font-weight:800;color:var(--accent);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.schema-col{display:flex;align-items:baseline;gap:6px;padding:5px 0;border-bottom:1px solid rgba(30,45,69,.5);font-size:11px}
+.schema-col:last-child{border-bottom:none}
+.schema-col-name{color:var(--text);font-weight:600;min-width:130px}
+.schema-col-type{color:var(--muted);font-size:10px}
+.schema-pk{font-size:9px;color:var(--yellow);background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.2);border-radius:3px;padding:1px 5px;font-weight:700}
+.schema-fk{font-size:9px;color:var(--purple);background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.2);border-radius:3px;padding:1px 5px;font-weight:700}
+.loading-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:999;display:none;justify-content:center;align-items:center}
+.loading-spinner{width:50px;height:50px;border:4px solid var(--border);border-top-color:var(--accent2);border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.hastalik-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.hastalik-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;transition:border-color .2s}
+.hastalik-card:hover{border-color:var(--accent)}
+.hastalik-card-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px}
+.hastalik-card-name{font-size:14px;font-weight:700;color:var(--text)}
+.hastalik-icd{font-size:10px;font-family:monospace;color:var(--accent);margin-top:3px}
+.risk-dots{display:flex;gap:3px}
+.risk-dot{width:10px;height:10px;border-radius:2px}
+.hastalik-params{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.hastalik-param{background:var(--surface2);border-radius:6px;padding:8px 10px}
+.hastalik-param-label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
+.hastalik-param-value{font-size:13px;font-weight:600;color:var(--text);margin-top:2px}
+.cmp-grid{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;margin-bottom:16px}
+.cmp-stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px}
+.cmp-stat-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px}
+.cmp-stat-val{font-size:22px;font-weight:800}
+.vs-badge{background:var(--accent);color:#000;font-weight:800;font-size:12px;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;margin:auto}
+.tedbir-table{width:100%;border-collapse:collapse}
+.tedbir-table th{text-align:left;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;padding:8px 12px;border-bottom:1px solid var(--border)}
+.tedbir-table td{padding:11px 12px;border-bottom:1px solid rgba(30,45,69,.5);font-size:12px}
+.tedbir-table tr:last-child td{border-bottom:none}
+.tedbir-table tr:hover td{background:rgba(0,212,255,.03)}
+.etki-badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700}
+.etki-yuksek{background:rgba(34,211,165,.1);color:#22d3a5;border:1px solid rgba(34,211,165,.25)}
+.etki-orta{background:rgba(251,191,36,.1);color:#fbbf24;border:1px solid rgba(251,191,36,.25)}
+.etki-dusuk{background:rgba(100,116,139,.1);color:#94a3b8;border:1px solid rgba(100,116,139,.25)}
+.unvan-badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;font-family:monospace}
+.unvan-doktor{background:rgba(0,212,255,.1);color:var(--accent);border:1px solid rgba(0,212,255,.25)}
+.unvan-hemsire{background:rgba(167,139,250,.1);color:var(--purple);border:1px solid rgba(167,139,250,.25)}
+.unvan-teknisyen{background:rgba(249,115,22,.1);color:var(--orange);border:1px solid rgba(249,115,22,.25)}
+</style>
+</head>
+<body>
+<div class="loading-overlay" id="loadingOverlay"><div class="loading-spinner"></div></div>
+<div id="sidebar">
+  <div class="sb-logo"><div class="sb-logo-inner"><div class="sb-logo-icon">🦠</div><div class="sb-logo-text"><div class="sb-logo-title">SalgınTakip</div><div class="sb-logo-sub">KDS v1.5</div></div></div></div>
+  <div class="sb-alert" onclick="showPage('dashboard')"><div class="sb-alert-title"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> KRİTİK UYARI</div><div class="sb-alert-body" id="sb-alert-text">Marmara: %87 doluluk</div></div>
+  <nav class="sb-nav">
+    <div class="sb-section">Ana Menü</div>
+    <div class="sb-item active" data-page="dashboard" onclick="showPage('dashboard')"><svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Dashboard</div>
+    <div class="sb-item" data-page="kapasite" onclick="showPage('kapasite')"><svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Hastane Kapasitesi</div>
+    <div class="sb-item" data-page="demografik" onclick="showPage('demografik')"><svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Demografik Analiz</div>
+    <div class="sb-item" data-page="bolge" onclick="showPage('bolge')"><svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Bölge Raporu</div>
+
+    <div class="sb-section">Analiz</div>
+    <div class="sb-item" data-page="hastalik-detay" onclick="showPage('hastalik-detay')"><svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Hastalık Detayı</div>
+    <div class="sb-section">Yönetim</div>
+    <div class="sb-item" data-page="tedbirler" onclick="showPage('tedbirler')"><svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Tedbirler & Politikalar</div>
+    <div class="sb-item" data-page="personel" onclick="showPage('personel')"><svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Personel Yönetimi</div>
+    <div class="sb-item" data-page="vaka-log" onclick="showPage('vaka-log')"><svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>Vaka Log & Denetim</div>
+    <div class="sb-section">Vatandaş</div>
+    <div class="sb-item" data-page="hastane-yogunluk" onclick="showPage('hastane-yogunluk')"><svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9-4-18-3 9H2"/></svg>Hastane Yoğunluğu</div>
+    <div class="sb-section">Doktor</div>
+    <div class="sb-item" data-page="vaka-bildir" onclick="showPage('vaka-bildir')"><svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Yeni Vaka Bildir</div>
+    <div class="sb-section">Yönetici</div>
+    <div class="sb-item" data-page="admin-panel" onclick="showPage('admin-panel')"><svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/><path d="M18 14l2 2 4-4"/></svg>Yönetici Paneli</div>
+  </nav>
+  <div class="sb-footer"><div class="sb-footer-uni"><strong>Muş Alparslan Üniversitesi</strong><br>VTYS Projesi — Bahar 2024-25</div></div>
+</div>
+<div id="app">
+  <div id="topbar">
+    <div id="topbar-title">Salgın Hastalık Yayılımı ve Sağlık Altyapısı Kapasite Analizi (Tahmin + Rapor)</div>
+    <div class="topbar-right">
+      <div class="theme-toggle" onclick="toggleTheme()">🌓 Tema</div>
+      <div class="live-badge"><div class="live-dot"></div> CANLI</div>
+      <div class="topbar-date" id="topbar-date"></div>
+      <div id="user-info" style="display:flex;align-items:center;gap:8px"></div>
+    </div>
+  </div>
+  <div id="content">
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-title">Dashboard</div>
+      <div class="page-sub">Genel sistem özeti + 7 günlük vaka tahmini (simüle)</div>
+      <div class="alert-banner" id="warningBanner" style="display:none"></div>
+      <div class="stats-row">
+        <div class="stat-card" style="--c:var(--accent2)"><div class="stat-lbl">Toplam Vaka</div><div class="stat-val" id="s-total">—</div><div class="stat-icon">📊</div><div class="stat-sub">Son 90 gün</div></div>
+        <div class="stat-card" style="--c:var(--yellow)"><div class="stat-lbl">Aktif Vaka</div><div class="stat-val" id="s-aktif">—</div><div class="stat-icon">⚠️</div><div class="stat-sub">Tedavi altında</div></div>
+        <div class="stat-card" style="--c:var(--green)"><div class="stat-lbl">İyileşen</div><div class="stat-val" id="s-iyilesen">—</div><div class="stat-icon">✅</div><div class="stat-sub">Taburcu</div></div>
+        <div class="stat-card" style="--c:var(--red)"><div class="stat-lbl">Vefat</div><div class="stat-val" id="s-vefat">—</div><div class="stat-icon">🔴</div><div class="stat-sub">Toplam kayıp</div></div>
+      </div>
+      <div class="charts-3">
+        <div class="card"><div class="card-title">Kümülatif Vaka Eğrisi</div><div class="cw-tall"><canvas id="kumChart"></canvas></div></div>
+        <div class="card"><div class="card-title">7 Günlük Vaka Tahmini (ARIMA benzeri)</div><div class="cw-tall"><canvas id="tahminChart"></canvas></div></div>
+        <div class="card"><div class="card-title">Hastalık Dağılımı</div><div class="cw-tall"><canvas id="donutChart"></canvas></div></div>
+      </div>
+      <div class="stats-row" style="margin-top:18px">
+        <div class="card" style="grid-column:span 2; margin-bottom:0"><div class="card-title">📌 Kritik Şehirler Haritası</div><div class="card-sub">Doluluk oranına göre renklendirilmiş bölgeler (daire büyüklüğü aktif vaka sayısını temsil eder)</div><div id="dashboard-map" style="height:320px; border-radius:8px; border:1px solid var(--border); margin-bottom:12px"></div><div style="display:flex; gap:16px; justify-content:space-between; flex-wrap:wrap"><div><span style="background:#22d3a5; width:12px; height:12px; border-radius:50%; display:inline-block"></span> Normal (%0-39)</div><div><span style="background:#fbbf24; width:12px; height:12px; border-radius:50%; display:inline-block"></span> Orta (%40-59)</div><div><span style="background:#f97316; width:12px; height:12px; border-radius:50%; display:inline-block"></span> Yüksek (%60-79)</div><div><span style="background:#f43f5e; width:12px; height:12px; border-radius:50%; display:inline-block"></span> Kritik (%80+)</div></div></div>
+        <div class="card" style="grid-column:span 2; margin-bottom:0"><div class="card-title">📋 Bölge Bazlı Aktif Vaka ve Doluluk</div><div class="card-sub">Anlık risk durumu ve kapasite kullanımı</div><div class="table-wrap"><table><thead><tr><th>Bölge</th><th>Aktif Vaka</th><th>Doluluk %</th><th>Risk Seviyesi</th></tr></thead><tbody id="dashboard-map-tbody"></tbody></table></div></div>
+      </div>
+      <div class="row" style="display:flex;gap:12px;margin-top:12px;flex-wrap:wrap"><button class="btn-primary" onclick="exportToExcel()">📎 Excel Aktar</button><button class="btn-primary" onclick="exportToPDF()">📄 PDF Rapor</button></div>
+    </div>
+    <!-- HASTANE KAPASİTESİ -->
+    <div class="page" id="page-kapasite">
+      <div class="page-title">Hastane Kapasitesi</div>
+      <div class="page-sub">Bölge bazlı yatak doluluk ve altyapı durumu</div>
+      <div class="stats-row">
+        <div class="stat-card" style="--c:var(--accent2)"><div class="stat-lbl">Toplam Yatak</div><div class="stat-val" id="k-tyatak">—</div><div class="stat-icon">🛏️</div><div class="stat-sub">Tüm tesisler</div></div>
+        <div class="stat-card" style="--c:var(--yellow)"><div class="stat-lbl">YBÜ Yatak</div><div class="stat-val" id="k-ybu">—</div><div class="stat-icon">🏥</div><div class="stat-sub">Yoğun bakım</div></div>
+        <div class="stat-card" style="--c:var(--red)"><div class="stat-lbl">Kritik Bölge</div><div class="stat-val" id="k-kritik">—</div><div class="stat-icon">🚨</div><div class="stat-sub">%80+ doluluk</div></div>
+        <div class="stat-card" style="--c:var(--green)"><div class="stat-lbl">Solunum Cihazı</div><div class="stat-val" id="k-solunum">—</div><div class="stat-icon">💨</div><div class="stat-sub">Toplam ventilator</div></div>
+      </div>
+      <div class="charts-2"><div class="card" style="grid-column:span 2"><div class="card-title">Bölge Doluluk Durumu</div><div class="card-sub">Doluluk oranı — anlık durum</div><div id="kap-detail-list"></div></div></div>
+      <div style="height:14px"></div>
+      <div class="card"><div class="card-title">Hastane Altyapı Detayı</div><div class="card-sub">Hastane tablosu — güncel kolon verileri</div><div class="table-wrap"><table><thead><tr><th>Hastane Adı</th><th>Bölge</th><th>Tür</th><th>Yatak</th><th>YBÜ</th><th>Solunum</th><th>Personel</th></tr></thead><tbody id="hastbody"></tbody></table></div></div>
+    </div>
+    <!-- DEMOGRAFİK ANALİZ -->
+    <div class="page" id="page-demografik">
+      <div class="page-title">Demografik Risk Analizi</div>
+      <div class="page-sub">Yaş grubu, cinsiyet, kronik hastalık ve aşı durumu bazlı risk segmentasyonu</div>
+      <div class="filter-row"><div class="fg"><label>Bölge</label><select id="d-bolge"><option value="">Tümü</option><option>Marmara</option><option>Ege</option><option>İç Anadolu</option><option>Karadeniz</option><option>Akdeniz</option><option>Doğu Anadolu</option><option>Güneydoğu Anadolu</option></select></div><div class="fg"><label>Hastalık</label><select id="d-hastalik"><option value="">Tümü</option><option>COVID-19</option><option>Grip</option><option>Zatürre</option><option>Menenjit</option></select></div><div class="fg"><label>Dönem</label><select id="d-donem"><option value="30">Son 30 gün</option><option value="7">Son 7 gün</option><option value="90">Son 90 gün</option></select></div><button class="btn-primary" onclick="loadDemografik()">Güncelle</button></div>
+      <div class="charts-2"><div class="card"><div class="card-title">Yaş Grubu Vaka Dağılımı</div><div class="card-sub">Yeni vaka ve vefat sayıları — yaş segmentasyonu</div><div class="cw"><canvas id="yasChart"></canvas></div></div><div class="card"><div class="card-title">Cinsiyet Dağılımı</div><div class="card-sub">Toplam vaka sayısı — cinsiyet bazlı kırılım</div><div class="cw"><canvas id="cinsChart"></canvas></div></div></div>
+      <div class="charts-2" style="margin-top:14px"><div class="card"><div class="card-title">Kronik Hasta Risk Karşılaştırması</div><div class="card-sub">Sorgu 8: CTE ile kaba ölüm oranı (KÖO) analizi</div><div id="kronik-cards" style="display:grid;gap:10px;margin-top:8px"></div></div><div class="card"><div class="card-title">Aşı Durumu Dağılımı</div><div class="card-sub">Vaka bildirimleri — aşılanma durumuna göre kırılım</div><div class="cw"><canvas id="asiChart"></canvas></div></div></div>
+    </div>
+    <!-- BÖLGE RAPORU (içinde karşılaştırma paneli ile) -->
+    <div class="page" id="page-bolge">
+      <div class="page-title">Bölge Raporu</div>
+      <div class="page-sub">sp_BolgeVakaRaporu — parametrik bölge bazlı vaka trend analizi</div>
+      <div class="card" style="margin-bottom:18px"><div style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap"><div class="fg"><label>Bölge Seç (@bolge_id)</label><select id="br-bolge" style="min-width:170px"><option>Marmara</option><option>Ege</option><option>İç Anadolu</option><option>Karadeniz</option><option>Akdeniz</option><option>Doğu Anadolu</option><option>Güneydoğu Anadolu</option></select></div><div><div class="fg" style="gap:5px"><label>Gün Sayısı (@gun_sayisi)</label></div><div class="day-btns"><button class="day-btn" data-g="7" onclick="setBolgeGun(this,7)">7g</button><button class="day-btn" data-g="14" onclick="setBolgeGun(this,14)">14g</button><button class="day-btn active" data-g="30" onclick="setBolgeGun(this,30)">30g</button><button class="day-btn" data-g="60" onclick="setBolgeGun(this,60)">60g</button><button class="day-btn" data-g="90" onclick="setBolgeGun(this,90)">90g</button></div></div><button class="btn-primary" onclick="loadBolgeRaporu()">Raporu Göster</button><div class="sql-chip" id="br-sql">EXEC sp_BolgeVakaRaporu @bolge_id = 1, @gun_sayisi = 30;</div></div></div>
+      <div class="stats-row"><div class="stat-card" style="--c:var(--accent2)"><div class="stat-lbl">Toplam Vaka</div><div class="stat-val" id="br-total">—</div><div class="stat-icon">📈</div><div class="stat-sub" id="br-bolge-lbl">—</div></div><div class="stat-card" style="--c:var(--red)"><div class="stat-lbl">Toplam Vefat</div><div class="stat-val" id="br-vefat">—</div><div class="stat-icon">⚠️</div><div class="stat-sub">Seçilen dönem</div></div><div class="stat-card" style="--c:var(--yellow)"><div class="stat-lbl">Ölüm Oranı</div><div class="stat-val" id="br-olum">—</div><div class="stat-icon">📊</div><div class="stat-sub">KÖO</div></div><div class="stat-card" style="--c:var(--purple)"><div class="stat-lbl">Nüfus</div><div class="stat-val" id="br-nufus">—</div><div class="stat-icon">🏙️</div><div class="stat-sub">Bölge nüfusu</div></div></div>
+      <div class="card" style="margin-bottom:18px"><div class="card-title" id="br-chart-title">Vaka Trendi</div><div class="card-sub">Günlük yeni vaka, iyileşen ve vefat sayıları</div><div class="leg"><div class="li"><div class="ld" style="background:#00d4ff"></div>Yeni Vaka</div><div class="li"><div class="ld" style="background:#22d3a5"></div>İyileşen</div><div class="li"><div class="ld" style="background:#f43f5e"></div>Vefat</div></div><div class="cw-tall"><canvas id="bolgeTrendChart"></canvas></div></div>
+      <div class="card"><div class="card-title">Hastalık Bazlı Kırılım</div><div class="card-sub">Seçilen bölge — hastalık dağılımı</div><div class="cw"><canvas id="bolgeHastalikChart"></canvas></div></div>
+      <!-- Bölge Karşılaştırma Paneli (tam ve çalışıyor) -->
+      <div style="margin-top:24px">
+        <div class="page-title" style="font-size:16px;margin-bottom:4px">📊 Bölge Karşılaştırması</div>
+        <div class="page-sub" style="margin-bottom:16px">İki bölgeyi vaka, iyileşme ve vefat bazında yan yana karşılaştır</div>
+        <div class="card" style="margin-bottom:14px"><div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:flex-end"><div class="fg"><label>1. Bölge</label><select id="br-cmp-b1"><option>Marmara</option><option>Ege</option><option>İç Anadolu</option><option>Karadeniz</option><option>Akdeniz</option><option>Doğu Anadolu</option><option>Güneydoğu Anadolu</option></select></div><div class="fg"><label>2. Bölge</label><select id="br-cmp-b2"><option>Marmara</option><option>Ege</option><option>İç Anadolu</option><option>Karadeniz</option><option>Akdeniz</option><option>Doğu Anadolu</option><option>Güneydoğu Anadolu</option></select></div><div class="fg"><label>Dönem</label><select id="br-cmp-gun"><option value="7">Son 7 gün</option><option value="30" selected>Son 30 gün</option><option value="90">Son 90 gün</option></select></div><button class="btn-primary" onclick="loadBolgeCmp()">Karşılaştır →</button></div></div>
+        <div id="br-cmp-result" style="display:none"><div id="br-cmp-stats" style="display:grid;grid-template-columns:1fr auto 1fr;gap:14px;margin-bottom:14px"></div><div class="charts-2"><div class="card"><div class="card-title">Günlük Yeni Vaka Trendi</div><div><canvas id="brCmpTrendChart" style="height:200px"></canvas></div></div><div class="card"><div class="card-title">İyileşen / Vefat Toplamı</div><div><canvas id="brCmpBarChart" style="height:200px"></canvas></div></div></div><div class="card" style="margin-top:14px"><div class="card-title">Detaylı Karşılaştırma Tablosu</div><table class="tedbir-table"><thead><tr><th>Gösterge</th><th id="br-cmp-th1" style="color:#00d4ff">Bölge 1</th><th id="br-cmp-th2" style="color:#f97316">Bölge 2</th><th>Fark</th></tr></thead><tbody id="br-cmp-tbody"></tbody></table></div></div>
+        <div id="br-cmp-empty" style="text-align:center;padding:40px;color:var(--muted)"><div style="font-size:32px;margin-bottom:8px">📈</div>İki bölge seçip "Karşılaştır" butonuna basın.</div>
+      </div>
+    </div>
+    <!-- VERİ TABLOLARI -->
+    <div class="page" id="page-tablolar">
+      <div class="page-title">Veri Tabloları</div>
+      <div class="page-sub">Ham veritabanı kayıtları — filtrelenebilir görünüm</div>
+      <div class="filter-row"><div class="fg"><label>Bölge</label><select id="t-bolge"><option value="">Tümü</option><option>Marmara</option><option>Ege</option><option>İç Anadolu</option><option>Karadeniz</option><option>Akdeniz</option><option>Doğu Anadolu</option><option>Güneydoğu Anadolu</option></select></div><div class="fg"><label>Hastalık</label><select id="t-hastalik"><option value="">Tümü</option><option>COVID-19</option><option>Grip</option><option>Zatürre</option><option>Menenjit</option></select></div><div class="fg"><label>Yaş Grubu</label><select id="t-yas"><option value="">Tümü</option><option>0-14</option><option>15-29</option><option>30-44</option><option>45-64</option><option>65+</option></select></div><div class="fg"><label>Kronik</label><select id="t-kronik"><option value="">Tümü</option><option>Var</option><option>Yok</option></select></div><div class="fg"><label>Dönem</label><select id="t-donem"><option>Son 30 gün</option><option>Son 7 gün</option><option>Son 90 gün</option></select></div><button class="btn-primary" onclick="applyFilter()">Filtrele</button></div>
+      <div class="card"><div class="card-title">Günlük Trend</div><div class="leg"><div class="li"><div class="ld" style="background:#0ea5e9"></div>Yeni vaka</div><div class="li"><div class="ld" style="background:#22d3a5"></div>İyileşen</div><div class="li"><div class="ld" style="background:#f43f5e"></div>Vefat</div></div><div class="cw"><canvas id="trendChart"></canvas></div></div>
+      <div class="card"><div class="card-title">Bölge Kapasite Özeti</div><div class="table-wrap"><table><thead><tr><th>Bölge</th><th>Toplam Yatak</th><th>YBÜ Yatak</th><th>Aktif Vaka</th><th>Doluluk %</th><th>Risk</th></tr></thead><tbody id="ktbody"></tbody></table></div></div>
+      <div class="card"><div class="card-title">Hastalık Klinik Parametreleri</div><div class="table-wrap"><table><thead><tr><th>Hastalık</th><th>ICD-10</th><th>Bulaşma</th><th>Kuluçka (gün)</th><th>R0</th><th>Ölüm Oranı %</th><th>Risk Skoru</th></tr></thead><tbody id="hastbody2"></tbody></table></div></div>
+      <div class="card"><div class="card-title">Aktif Tedbirler</div><div class="table-wrap"><table><thead><tr><th>Bölge</th><th>Tedbir Adı</th><th>Tür</th><th>Başlangıç</th><th>Bitiş</th><th>Durum</th></tr></thead><tbody id="tedbirbody"></tbody></table></div></div>
+    </div>
+    <!-- ŞEMA SAYFASI (kısa) -->
+    <div class="page" id="page-sema">
+      <div class="page-title">Şema &amp; Normalizasyon</div>
+      <div class="page-sub">SalginUygulamasiDB — tablo yapıları ve ilişkiler (3NF uyumlu)</div>
+      <div class="schema-grid"><div class="schema-card"><div class="schema-card-title">🔴 Vaka_Bildirimi</div><div class="schema-col"><span class="schema-col-name">vaka_id</span><span class="schema-col-type">INT</span><span class="schema-pk">PK</span></div><div class="schema-col"><span class="schema-col-name">bildirim_tarihi</span><span class="schema-col-type">DATE</span></div><div class="schema-col"><span class="schema-col-name">yeni_vaka_sayisi</span><span class="schema-col-type">INT</span></div><div class="schema-col"><span class="schema-col-name">iyilesen_sayisi</span><span class="schema-col-type">INT</span></div><div class="schema-col"><span class="schema-col-name">vefat_sayisi</span><span class="schema-col-type">INT</span></div><div class="schema-col"><span class="schema-col-name">bolge_id</span><span class="schema-col-type">INT</span><span class="schema-fk">FK</span></div><div class="schema-col"><span class="schema-col-name">hastalik_id</span><span class="schema-col-type">INT</span><span class="schema-fk">FK</span></div><div class="schema-col"><span class="schema-col-name">grup_id</span><span class="schema-col-type">INT</span><span class="schema-fk">FK</span></div><div class="schema-col"><span class="schema-col-name">hastane_id</span><span class="schema-col-type">INT</span><span class="schema-fk">FK</span></div></div><div class="schema-card"><div class="schema-card-title">🟢 Bolge</div><div class="schema-col"><span class="schema-col-name">bolge_id</span><span class="schema-col-type">INT</span><span class="schema-pk">PK</span></div><div class="schema-col"><span class="schema-col-name">bolge_adi</span><span class="schema-col-type">NVARCHAR(100)</span></div><div class="schema-col"><span class="schema-col-name">nufus</span><span class="schema-col-type">BIGINT</span></div></div><div class="schema-card"><div class="schema-card-title">📋 VIEW'lar & Nesneler</div><div class="schema-col"><span>vw_Bolge_Kapasite_Ozeti, sp_BolgeVakaRaporu, trg_Vaka_Kontrol, Vaka_Log</span></div><div style="margin-top:8px">✦ 3NF uyumlu tasarım</div></div></div>
+    </div>
+    <!-- HASTALIK DETAYI -->
+    <div class="page" id="page-hastalik-detay"><div class="page-title">Hastalık Detayı</div><div class="page-sub">ICD-10 kodları, R₀ bulaşıcılık katsayısı, kuluçka süresi ve risk skorları</div><div id="hastalik-detay-container"><div class="card" style="text-align:center;padding:40px;color:var(--muted)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:40px;height:40px;margin:0 auto 12px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><p>Yükleniyor...</p></div></div></div>
+    <!-- TEDBİRLER -->
+    <div class="page" id="page-tedbirler"><div class="page-title">Tedbirler & Politikalar</div><div class="page-sub">Bolge_Tedbir tablosu — bölge bazlı aktif tedbir ve politika takibi</div><div class="filter-row" style="margin-bottom:16px"><div class="fg"><label>Bölge Filtrele</label><select id="td-bolge" onchange="loadTedbirler()"><option value="">Tüm Bölgeler</option><option>Marmara</option><option>Ege</option><option>İç Anadolu</option><option>Karadeniz</option><option>Akdeniz</option><option>Doğu Anadolu</option><option>Güneydoğu Anadolu</option></select></div></div><div id="tedbirler-container"><div class="card" style="text-align:center;padding:40px;color:var(--muted)">Yükleniyor...</div></div></div>
+    <!-- PERSONEL -->
+    <div class="page" id="page-personel"><div class="page-title">Personel Yönetimi</div><div class="page-sub">Personel tablosu — hastane bazlı sağlık çalışanları takibi (1-N ilişki)</div><div class="filter-row" style="margin-bottom:16px"><div class="fg"><label>Bölge</label><select id="ps-bolge" onchange="loadPersonel()"><option value="">Tüm Bölgeler</option><option>Marmara</option><option>Ege</option><option>İç Anadolu</option><option>Karadeniz</option><option>Akdeniz</option><option>Doğu Anadolu</option><option>Güneydoğu Anadolu</option></select></div><div class="fg"><label>Unvan</label><select id="ps-unvan" onchange="loadPersonel()"><option value="">Tümü</option><option>Doktor</option><option>Hemsire</option><option>Teknisyen</option></select></div></div><div id="personel-container"><div class="card" style="text-align:center;padding:40px;color:var(--muted)">Yükleniyor...</div></div></div>
+    <!-- VAKA LOG -->
+    <div class="page" id="page-vaka-log"><div class="page-title">Vaka Log & Denetim</div><div class="page-sub">Vaka_Log tablosu — TRIGGER tarafından otomatik oluşturulan denetim kayıtları</div><div id="vaka-log-container"><div class="card" style="text-align:center;padding:40px;color:var(--muted)">Yükleniyor...</div></div></div>
+    <div class="page" id="page-hastane-yogunluk"><div class="page-title">En Yakın Hastane Yoğunluğu</div><div class="filter-row"><div class="fg"><label>İl</label><select id="hastane-il"><option>İstanbul</option><option>Ankara</option><option>İzmir</option></select></div><div class="fg"><label>İlçe</label><select id="hastane-ilce"><option>Kadıköy</option><option>Beşiktaş</option></select></div><button class="btn-primary" onclick="findNearestHospital()">Sorgula</button></div><div id="hastane-sonuc" class="card" style="display:none"></div></div>
+    <div class="page" id="page-vaka-bildir"><div class="page-title">Yeni Vaka Bildir (Doktor)</div><div class="card"><div class="filter-row"><div class="fg"><label>Tarih</label><input type="date" id="v-tarih" value="2025-04-01"></div><div class="fg"><label>Bölge</label><select id="v-bolge"><option>Marmara</option><option>Ege</option><option>İç Anadolu</option><option>Karadeniz</option><option>Akdeniz</option><option>Doğu Anadolu</option><option>Güneydoğu Anadolu</option></select></div><div class="fg"><label>Hastalık</label><select id="v-hastalik"><option>COVID-19</option><option>Grip</option><option>Zatürre</option><option>Menenjit</option></select></div><div class="fg"><label>Yaş Grubu</label><select id="v-yas"><option>0-14</option><option>15-29</option><option>30-44</option><option>45-64</option><option>65+</option></select></div><div class="fg"><label>Cinsiyet</label><select id="v-cins"><option>E</option><option>K</option></select></div><div class="fg"><label>Kronik Hastalık</label><select id="v-kronik"><option>Yok</option><option>Var</option></select></div></div><button class="btn-primary" onclick="submitVaka()">Bildirimi Kaydet</button><div id="vaka-mesaj" class="sql-chip"></div></div></div>
+
+    <div class="page" id="page-admin-panel">
+      <div class="page-title">Yönetici Paneli</div>
+      <div class="page-sub">Veri ekleme ve güncelleme işlemleri</div>
+
+      <!-- TAB NAVİGASYON -->
+      <div style="display:flex;gap:8px;margin-bottom:20px">
+        <button class="admin-tab active" onclick="switchAdminTab('vaka')" id="tab-vaka" style="padding:8px 18px;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer;font-size:12px;font-weight:700">📋 Vaka Ekle</button>
+        <button class="admin-tab" onclick="switchAdminTab('personel')" id="tab-personel" style="padding:8px 18px;border-radius:8px;border:1px solid var(--border);background:none;color:var(--muted);cursor:pointer;font-size:12px;font-weight:700">👤 Personel Ekle</button>
+        <button class="admin-tab" onclick="switchAdminTab('hastane')" id="tab-hastane" style="padding:8px 18px;border-radius:8px;border:1px solid var(--border);background:none;color:var(--muted);cursor:pointer;font-size:12px;font-weight:700">🏥 Hastane Kapasitesi</button>
+      </div>
+
+      <!-- VAKA EKLE -->
+      <div id="admin-vaka" class="card" style="display:block">
+        <div class="card-title">Yeni Vaka Bildirimi</div>
+        <div class="filter-row" style="margin-bottom:12px">
+          <div class="fg"><label>Tarih</label><input type="date" id="av-tarih"></div>
+          <div class="fg"><label>Bölge</label><select id="av-bolge"><option>Marmara</option><option>Ege</option><option>İç Anadolu</option><option>Karadeniz</option><option>Akdeniz</option><option>Doğu Anadolu</option><option>Güneydoğu Anadolu</option></select></div>
+          <div class="fg"><label>Hastalık</label><select id="av-hastalik"><option>COVID-19</option><option>Grip</option><option>Zatürre</option><option>Menenjit</option><option>Mpox</option><option>RSV</option></select></div>
+          <div class="fg"><label>Yaş Grubu</label><select id="av-yas"><option>0-14</option><option>15-29</option><option>30-44</option><option>45-64</option><option>65+</option></select></div>
+          <div class="fg"><label>Cinsiyet</label><select id="av-cins"><option value="E">Erkek</option><option value="K">Kadın</option></select></div>
+          <div class="fg"><label>Kronik Hastalık</label><select id="av-kronik"><option>Yok</option><option>Var</option></select></div>
+          <div class="fg"><label>Yeni Vaka Sayısı</label><input type="number" id="av-yeni" min="1" value="1" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text)"></div>
+          <div class="fg"><label>İyileşen Sayısı</label><input type="number" id="av-iyilesen" min="0" value="0" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text)"></div>
+          <div class="fg"><label>Vefat Sayısı</label><input type="number" id="av-vefat" min="0" value="0" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text)"></div>
+        </div>
+        <button class="btn-primary" onclick="adminVakaEkle()" style="background:var(--accent);border:none;color:#fff;padding:10px 24px;border-radius:8px;cursor:pointer;font-weight:700">Vakayı Kaydet</button>
+        <div id="admin-vaka-mesaj" style="margin-top:12px;font-size:13px"></div>
+      </div>
+
+      <!-- PERSONEL EKLE -->
+      <div id="admin-personel" class="card" style="display:none">
+        <div class="card-title">Yeni Personel Ekle</div>
+        <div class="filter-row" style="margin-bottom:12px">
+          <div class="fg"><label>Ad Soyad</label><input type="text" id="ap-adsoyad" placeholder="Dr. Ahmet Yılmaz" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text)"></div>
+          <div class="fg"><label>Unvan</label><select id="ap-unvan"><option>Doktor</option><option>Hemşire</option><option>Teknisyen</option><option>İdari Personel</option></select></div>
+          <div class="fg"><label>Departman</label><input type="text" id="ap-departman" placeholder="Acil Servis" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text)"></div>
+          <div class="fg"><label>Vardiya</label><select id="ap-vardiya"><option>Gündüz</option><option>Gece</option><option>Rotasyon</option></select></div>
+          <div class="fg"><label>Hastane</label><select id="ap-hastane"><option>Yükleniyor...</option></select></div>
+          <div class="fg"><label>İşe Başlama</label><input type="date" id="ap-tarih" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text)"></div>
+        </div>
+        <button class="btn-primary" onclick="adminPersonelEkle()" style="background:#3b82f6;border:none;color:#fff;padding:10px 24px;border-radius:8px;cursor:pointer;font-weight:700">Personeli Kaydet</button>
+        <div id="admin-personel-mesaj" style="margin-top:12px;font-size:13px"></div>
+      </div>
+
+      <!-- HASTANE KAPASİTE -->
+      <div id="admin-hastane" class="card" style="display:none">
+        <div class="card-title">Hastane Kapasitesi Güncelle</div>
+        <div class="fg" style="margin-bottom:16px">
+          <label>Hastane Seçin</label>
+          <select id="ah-hastane" onchange="loadHastaneBilgi()" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text)"><option>Yükleniyor...</option></select>
+        </div>
+        <div class="filter-row" style="margin-bottom:12px">
+          <div class="fg"><label>Toplam Yatak</label><input type="number" id="ah-yatak" min="0" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text)"></div>
+          <div class="fg"><label>YBÜ Yatak</label><input type="number" id="ah-ybu" min="0" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text)"></div>
+          <div class="fg"><label>Solunum Cihazı</label><input type="number" id="ah-solunum" min="0" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text)"></div>
+          <div class="fg"><label>Aktif Personel</label><input type="number" id="ah-personel" min="0" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text)"></div>
+        </div>
+        <button class="btn-primary" onclick="adminHastaneGuncelle()" style="background:#22c55e;border:none;color:#fff;padding:10px 24px;border-radius:8px;cursor:pointer;font-weight:700">Kapasiteyi Güncelle</button>
+        <div id="admin-hastane-mesaj" style="margin-top:12px;font-size:13px"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="overlay" onclick="closeAllPanels()"></div>
+<script>
+// ========== YARDIMCILAR ==========
+function showLoading(){ document.getElementById('loadingOverlay').style.display='flex'; }
+function hideLoading(){ document.getElementById('loadingOverlay').style.display='none'; }
+function toggleTheme(){ let t = document.documentElement.getAttribute('data-theme'); document.documentElement.setAttribute('data-theme', t==='light'?'dark':'light'); }
+function updateDate(){ document.getElementById('topbar-date').textContent = new Date().toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'}); }
+updateDate();
+const jf = url => fetch(API_BASE + url).then(r=>r.json());
+
+// ========== GERÇEK API — Supabase üzerinden Flask backend ==========
+// window.fetch override YOK — tarayıcının native fetch'i kullanılıyor.
+// Flask uygulaması aynı origin'de çalışıyorsa /api/... doğrudan çalışır.
+// Farklı bir host/port ise aşağıdaki API_BASE'i güncelleyin.
+const API_BASE = '';  // örn: 'http://localhost:5000' veya ''
+
+// =====================================================================
+// OTURUM KONTROLÜ — server-side session, loop yok
+// =====================================================================
+(async function checkAuth(){
+  try {
+    const r = await fetch('/api/me');
+    if(r.status === 401){ window.location.href = '/login'; return; }
+    const d = await r.json();
+    if(!d || !d.authenticated){ window.location.href = '/login'; return; }
+    const rol = d.rol || 'vatandas';
+    localStorage.setItem('sb_rol', rol);
+    const rolRenk = rol==='admin'?'#ef4444':rol==='doktor'?'#3b82f6':'#22c55e';
+    const rolLabel = rol==='admin'?'Yönetici':rol==='doktor'?'Doktor':'Vatandaş';
+    const userEl = document.getElementById('user-info');
+    if(userEl) userEl.innerHTML = `
+      <span style="font-size:11px;color:var(--muted)">${d.email}</span>
+      <span style="background:${rolRenk}22;color:${rolRenk};border:1px solid ${rolRenk}44;
+        padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700">${rolLabel}</span>
+      <button onclick="logout()" style="background:none;border:1px solid var(--border);
+        color:var(--muted);padding:3px 10px;border-radius:6px;cursor:pointer;font-size:10px">Çıkış</button>
+    `;
+  } catch(e){
+    console.warn('checkAuth:', e.message);
+  }
+})();
+
+async function logout(){
+  await fetch('/api/logout', { method: 'POST' }).catch(()=>{});
+  localStorage.removeItem('sb_token');
+  localStorage.removeItem('sb_rol');
+  window.location.href = '/login';
+}
+
+// Session cookie otomatik gönderilir — fetch override gerekmez
+
+// ========== CHART UTILS ==========
+Chart.defaults.color = '#64748b'; Chart.defaults.borderColor = 'rgba(30,45,69,.6)';
+function mkLine(id, labels, datasets){ let c=document.getElementById(id); if(!c) return; if(c._ch) c._ch.destroy(); c._ch = new Chart(c, { type:'line', data:{labels,datasets:datasets.map(d=>({tension:.4,pointRadius:0,borderWidth:2,...d}))}, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}, scales:{x:{ticks:{color:'#64748b',maxTicksLimit:10},grid:{color:'rgba(30,45,69,.5)'}}, y:{ticks:{color:'#64748b'},grid:{color:'rgba(30,45,69,.5)'}}}} }); }
+function mkBar(id, labels, datasets){ let c=document.getElementById(id); if(!c) return; if(c._ch) c._ch.destroy(); c._ch = new Chart(c, { type:'bar', data:{labels,datasets}, options:{responsive:true,maintainAspectRatio:false, plugins:{legend:{labels:{color:'#94a3b8',font:{size:11}}}}, scales:{x:{ticks:{color:'#64748b'},grid:{display:false}}, y:{ticks:{color:'#64748b'},grid:{color:'rgba(30,45,69,.5)'}}}} }); }
+function mkDoughnut(id, labels, values, colors){ let c=document.getElementById(id); if(!c) return; if(c._ch) c._ch.destroy(); c._ch = new Chart(c, { type:'doughnut', data:{labels,datasets:[{data:values,backgroundColor:colors,borderWidth:0,hoverOffset:6}]}, options:{responsive:true,maintainAspectRatio:false,cutout:'65%', plugins:{legend:{position:'bottom',labels:{color:'#94a3b8',font:{size:11}}}} } }); }
+
+// ========== TAHMİN VE DİĞER FONKSİYONLAR (kısa tutuldu) ==========
+async function loadForecast(){ let trendData = await fetch(API_BASE + '/api/gunluk_trend?bolge=Marmara&donem=Son%2030%20g%C3%BCn').then(r=>r.json()); if(trendData && trendData.yeni){ let forecast = (function(historical, days=7){ if(!historical || historical.length<5) return Array(days).fill(100); let last5 = historical.slice(-5); let avg = last5.reduce((a,b)=>a+b,0)/last5.length; let trend = (historical[historical.length-1] - historical[historical.length-6])/5; let f=[]; for(let i=1;i<=days;i++) f.push(Math.max(0, Math.round(avg + trend*i))); return f; })(trendData.yeni,7); let labels = [...Array(7).keys()].map(i=>`+${i+1} gün`); mkBar('tahminChart', labels, [{label:'Tahmini Vaka', data:forecast, backgroundColor:'#a78bfaaa', borderRadius:6}]); let lastActual = trendData.yeni[trendData.yeni.length-1]; let maxForecast = Math.max(...forecast); let banner = document.getElementById('warningBanner'); if(lastActual > 1200 || maxForecast > 1500){ banner.style.display='flex'; banner.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><p><strong>ERKEN UYARI:</strong> Son günlük vaka sayısı yüksek (${lastActual}) ve önümüzdeki günlerde artış bekleniyor (tahmini tepe ${maxForecast}). Acil önlem alınması önerilir.</p>`; } else banner.style.display='none'; } }
+async function exportToExcel(){ showLoading(); let data = [["Gösterge","Değer"]]; let ozet = await fetch(API_BASE + '/api/ozet').then(r=>r.json()); data.push(["Toplam Vaka (tahmini)", ozet.aktif_vaka*1.7]); data.push(["Aktif Vaka", ozet.aktif_vaka]); let kap = await fetch(API_BASE + '/api/kapasite').then(r=>r.json()); kap.forEach(k=>data.push([`${k.bolge} - Doluluk`, k.doluluk+"%"])); let ws = XLSX.utils.aoa_to_sheet(data); let wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "SalginRapor"); XLSX.writeFile(wb, `salgin_rapor_${new Date().toISOString().slice(0,19)}.xlsx`); hideLoading(); }
+async function exportToPDF(){ showLoading(); const { jsPDF } = window.jspdf; const element = document.getElementById('page-dashboard'); if(!element) return; try { const canvas = await html2canvas(element, { scale: 2, backgroundColor: '#111827' }); const imgData = canvas.toDataURL('image/png'); const pdf = new jsPDF('p', 'mm', 'a4'); const imgProps = pdf.getImageProperties(imgData); const pdfWidth = pdf.internal.pageSize.getWidth(); const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width; pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight); pdf.save(`salgin_dashboard_${new Date().toISOString().slice(0,19)}.pdf`); } catch(e){ alert("PDF oluşturulamadı"); } hideLoading(); }
+function findNearestHospital(){ let il = document.getElementById('hastane-il').value; let ilce = document.getElementById('hastane-ilce').value; let mockHastaneler = { İstanbul: { Kadıköy:{ ad:"Kadıköy Devlet Hastanesi", doluluk:72, mesafe:2.3 }, Beşiktaş:{ ad:"Beşiktaş EAH", doluluk:88, mesafe:4.1 } }, Ankara: { Çankaya:{ ad:"Ankara Şehir Hastanesi", doluluk:45, mesafe:1.8 } }, İzmir: { Karşıyaka:{ ad:"İzmir Üniversite", doluluk:63, mesafe:3.2 } } }; let h = mockHastaneler[il]?.[ilce]; let sonucDiv = document.getElementById('hastane-sonuc'); if(h){ let renk = h.doluluk>=80?'kritik':h.doluluk>=60?'yuksek':'normal'; sonucDiv.style.display='block'; sonucDiv.innerHTML = `<div><strong>${h.ad}</strong> <span class="badge ${renk}">Doluluk %${h.doluluk}</span></div><div style="margin-top:8px">📍 Uzaklık: ${h.mesafe} km | Tahmini bekleme: ${Math.round(h.doluluk/10)} dakika</div><button class="btn-ghost" style="margin-top:8px" onclick="alert('Yönlendirme başlatılıyor...')">🗺️ Yol Tarifi Al</button>`; } else { sonucDiv.style.display='block'; sonucDiv.innerHTML = `<div class="alert-banner"><p>Bu ilçede hastane verisi bulunamadı.</p></div>`; } }
+async function submitVaka(){
+  const tarih    = document.getElementById('v-tarih').value;
+  const bolge    = document.getElementById('v-bolge').value;
+  const hastalik = document.getElementById('v-hastalik').value;
+  const yas      = document.getElementById('v-yas').value;
+  const cins     = document.getElementById('v-cins').value;
+  const kronik   = document.getElementById('v-kronik').value;
+  const mesajDiv = document.getElementById('vaka-mesaj');
+  if(!tarih || !bolge || !hastalik){ mesajDiv.innerHTML='⚠️ Lütfen tüm alanları doldurun.'; mesajDiv.style.color='var(--yellow)'; return; }
+  try {
+    const res = await fetch(API_BASE + '/api/vaka_bildir', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ tarih, bolge, hastalik, yas, cinsiyet: cins, kronik, yeni_vaka: 1 })
+    });
+    const data = await res.json();
+    if(data.error){ mesajDiv.innerHTML='❌ Hata: '+data.error; mesajDiv.style.color='var(--red)'; }
+    else { mesajDiv.innerHTML=data.mesaj||'✅ Kaydedildi'; mesajDiv.style.color='#22d3a5'; setTimeout(()=>mesajDiv.innerHTML='',4000); }
+  } catch(e) { mesajDiv.innerHTML='❌ Sunucu bağlantı hatası: '+e.message; mesajDiv.style.color='var(--red)'; }
+}
+
+// ========== SAYFA İÇERİK YÜKLEME (tüm sayfalar) ==========
+async function loadKapasite(){ let kap = await fetch(API_BASE + '/api/kapasite').then(r=>r.json()); let hast = await fetch(API_BASE + '/api/hastane_detay').then(r=>r.json()); let ty=0,ybu=0,kritik=0,sol=0; kap.forEach(k=>{ ty+=k.toplam_yatak||0; ybu+=k.ybu_yatak||0; if(k.doluluk>=80)kritik++; }); document.getElementById('k-tyatak').textContent=ty.toLocaleString(); document.getElementById('k-ybu').textContent=ybu.toLocaleString(); document.getElementById('k-kritik').textContent=kritik; if(hast) hast.forEach(h=>sol+=h.solunum||0); document.getElementById('k-solunum').textContent=sol.toLocaleString(); document.getElementById('kap-detail-list').innerHTML = kap.map(k=>{ let pct=Math.round(k.doluluk||0), cl=pct>=80?'var(--red)':pct>=50?'var(--yellow)':'var(--green)', badge=pct>=80?'kritik':pct>=50?'yuksek':'normal', label=pct>=80?'KRİTİK':pct>=50?'YÜKSEK RİSK':'NORMAL'; return `<div class="kap-row"><div class="kap-name">${k.bolge}</div><div class="prog-wrap" style="flex:1"><div class="prog-bar"><div class="prog-fill" style="width:${Math.min(pct,100)}%;background:${cl}"></div></div><div class="prog-pct" style="color:${cl}">%${pct}</div></div><span class="badge ${badge}">${label}</span></div>`; }).join(''); document.getElementById('hastbody').innerHTML = hast.map(h=>`<tr><td><strong>${h.hastane_adi}</strong></td><td>${h.bolge}</td><td>${h.tur}</td><td>${h.yatak.toLocaleString()}</td><td>${h.ybu.toLocaleString()}</td><td>${h.solunum.toLocaleString()}</td><td>${h.personel.toLocaleString()}</td></tr>`).join(''); }
+async function loadDemografik(){ mkBar('yasChart', ['0-14','15-29','30-44','45-64','65+'], [{label:'Yeni Vaka',data:[7800,7400,7600,7500,8000],backgroundColor:'#00d4ffaa',borderRadius:4},{label:'Vefat',data:[40,35,55,80,150],backgroundColor:'#f43f5eaa',borderRadius:4}]); mkDoughnut('cinsChart',['Erkek','Kadın'],[43,57],['#00d4ff','#22d3a5']); document.getElementById('kronik-cards').innerHTML = `<div style="background:rgba(244,63,94,.08);border:1px solid rgba(244,63,94,.2);border-radius:10px;padding:14px"><div style="display:flex;justify-content:space-between"><span style="font-size:12px;font-weight:700;color:var(--red)">Kronik Hasta</span><span>KÖO: %2.03</span></div><div><div>Toplam Vaka: 20.343</div><div>Toplam Vefat: 412</div></div></div><div style="background:rgba(34,211,165,.08);border:1px solid rgba(34,211,165,.2);border-radius:10px;padding:14px"><div style="display:flex;justify-content:space-between"><span style="font-size:12px;font-weight:700;color:var(--green)">Kronik Değil</span><span>KÖO: %1.95</span></div><div><div>Toplam Vaka: 21.378</div><div>Toplam Vefat: 417</div></div></div>`; mkDoughnut('asiChart',['Tam Aşılı','Aşısız','Kısmi'],[19620,8400,6500],['#00d4ff','#22d3a5','#fbbf24']); }
+let brGun=30; function setBolgeGun(btn,g){ brGun=g; document.querySelectorAll('.day-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); loadBolgeRaporu(); }
+async function loadBolgeRaporu(){ let bolge = document.getElementById('br-bolge').value; document.getElementById('br-bolge-lbl').textContent=bolge; document.getElementById('br-chart-title').textContent=bolge+' — Son '+brGun+' Günlük Vaka Trendi'; let idx = ['Marmara','Ege','İç Anadolu','Karadeniz','Akdeniz','Doğu Anadolu','Güneydoğu Anadolu'].indexOf(bolge)+1; document.getElementById('br-sql').textContent=`EXEC sp_BolgeVakaRaporu @bolge_id = ${idx}, @gun_sayisi = ${brGun};`; let d = await fetch(API_BASE + `/api/gunluk_trend?bolge=${encodeURIComponent(bolge)}&donem=Son ${brGun} g%C3%BCn`).then(r=>r.json()); if(d && d.gunler){ let tv = d.yeni.reduce((a,b)=>a+b,0), tvf = d.vefat.reduce((a,b)=>a+b,0); document.getElementById('br-total').textContent=tv.toLocaleString(); document.getElementById('br-vefat').textContent=tvf.toLocaleString(); document.getElementById('br-olum').textContent=tv>0?('%'+(tvf/tv*100).toFixed(2)):'—'; let nufuslar={Marmara:15840900, Ege:4479525, "İç Anadolu":5782285, Karadeniz:7689000, Akdeniz:10500000, "Doğu Anadolu":6500000, "Güneydoğu Anadolu":8900000}; document.getElementById('br-nufus').textContent=nufuslar[bolge]?.toLocaleString()||'—'; mkLine('bolgeTrendChart', d.gunler, [{label:'Yeni Vaka',data:d.yeni,borderColor:'#00d4ff',backgroundColor:'rgba(0,212,255,.08)',fill:true},{label:'İyileşen',data:d.iyilesen,borderColor:'#22d3a5',backgroundColor:'transparent'},{label:'Vefat',data:d.vefat,borderColor:'#f43f5e',backgroundColor:'transparent',borderDash:[4,3]}]); } mkBar('bolgeHastalikChart', ['COVID-19','Grip','Zatürre'],[{label:'Vaka (%)',data:[58,28,14],backgroundColor:['#00d4ff','#22d3a5','#f97316'],borderRadius:5}],{plugins:{legend:{display:false}}}); }
+async function applyFilter(){ let d = await fetch(API_BASE + `/api/gunluk_trend?bolge=${document.getElementById('t-bolge').value||''}&hastalik=${document.getElementById('t-hastalik').value||''}&yas=${document.getElementById('t-yas').value||''}&kronik=${document.getElementById('t-kronik').value||''}&donem=${document.getElementById('t-donem').value||'Son 30 gün'}`).then(r=>r.json()); if(d && d.gunler) mkLine('trendChart', d.gunler, [{label:'Yeni',data:d.yeni,borderColor:'#0ea5e9',backgroundColor:'rgba(14,165,233,.08)',fill:true},{label:'İyileşen',data:d.iyilesen,borderColor:'#22d3a5',backgroundColor:'transparent'},{label:'Vefat',data:d.vefat,borderColor:'#f43f5e',backgroundColor:'transparent'}]); let kap = await fetch(API_BASE + '/api/kapasite').then(r=>r.json()); document.getElementById('ktbody').innerHTML = kap.map(k=>{ let pct=Math.round(k.doluluk||0), badge=pct>=80?'kritik':pct>=50?'yuksek':'normal', label=pct>=80?'KRİTİK':pct>=50?'YÜKSEK RİSK':'NORMAL'; return `<tr><td><strong>${k.bolge}</strong></td><td>${k.toplam_yatak.toLocaleString()}</td><td>${k.ybu_yatak.toLocaleString()}</td><td>${k.aktif_vaka.toLocaleString()}</td><td><div class="prog-wrap"><div class="prog-bar"><div class="prog-fill" style="width:${Math.min(pct,100)}%;background:${pct>=80?'var(--red)':pct>=50?'var(--yellow)':'var(--green)'}"></div></div><span>${pct}%</span></div></td><td><span class="badge ${badge}">${label}</span></td></tr>`; }).join(''); let hastDetay = await fetch(API_BASE + '/api/hastalik_detay').then(r=>r.json()); document.getElementById('hastbody2').innerHTML = hastDetay.map(h=>`<tr><td><strong>${h.hastalik_adi}</strong></td><td>${h.icd10_kodu||'—'}</td><td>${h.bulasma_sekli||'—'}</td><td>${h.ortalama_kulucka||'—'}</td><td>${h.bulasicilik||'—'}</td><td>${((h.olumculuk||0)*100).toFixed(2)}</td><td>${h.risk_seviyesi||'—'}</td></tr>`).join(''); let tedbir = await fetch(API_BASE + '/api/tedbirler').then(r=>r.json()); document.getElementById('tedbirbody').innerHTML = tedbir.map(t=>`<tr><td>${t.bolge}</td><td><strong>${t.tedbir_adi}</strong></td><td>${t.tedbir_turu}</td><td>${t.baslangic}</td><td>${t.bitis}</td><td><span class="badge ${t.durum==='Aktif'?'normal':'yuksek'}">${t.durum}</span></td></tr>`).join(''); }
+let dashboardMap = null, dashboardMarkers = [];
+async function loadDashboardHarita(){ let rows = await fetch(API_BASE + '/api/kapasite').then(r=>r.json()); let coords = { Marmara:[41.0082,28.9784], Ege:[38.4192,27.1287], "İç Anadolu":[39.9334,32.8597], Karadeniz:[41.0082,36.5714], Akdeniz:[36.8969,30.7133], "Doğu Anadolu":[39.9556,41.0370], "Güneydoğu Anadolu":[37.8789,40.5268] }; if(!dashboardMap){ dashboardMap = L.map('dashboard-map', {zoomControl:false, attributionControl:false}).setView([39,35],5.5); L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {maxZoom:18}).addTo(dashboardMap); L.control.zoom({position:'bottomright'}).addTo(dashboardMap); } dashboardMarkers.forEach(m=>m.remove()); dashboardMarkers = []; rows.forEach(r=>{ let c=coords[r.bolge]; if(!c) return; let doluluk=r.doluluk||0; let renk = doluluk>=80?'#f43f5e': doluluk>=60?'#f97316': doluluk>=40?'#fbbf24':'#22d3a5'; let yaricap = 15 + (r.aktif_vaka||0)/500; let circle = L.circleMarker(c,{radius:Math.min(35, yaricap), fillColor:renk, fillOpacity:.7, color:renk, weight:2, opacity:1}).addTo(dashboardMap); circle.bindPopup(`<b>${r.bolge}</b><br>Aktif: ${(r.aktif_vaka||0).toLocaleString()}<br>Doluluk: %${doluluk}<br>Risk: ${r.risk}`); dashboardMarkers.push(circle); }); let tbody = document.getElementById('dashboard-map-tbody'); if(tbody) tbody.innerHTML = rows.map(r=>`<tr><td><strong>${r.bolge}</strong></td><td>${(r.aktif_vaka||0).toLocaleString()}</td><td>%${r.doluluk}</td><td><span class="badge ${r.risk==='KRİTİK'?'kritik':r.risk==='YÜKSEK RİSK'?'yuksek':'normal'}">${r.risk}</span></td></tr>`).join(''); }
+// Bölge Karşılaştırma fonksiyonu (Bölge Raporu içindeki)
+async function loadBolgeCmp() { const b1 = document.getElementById('br-cmp-b1').value; const b2 = document.getElementById('br-cmp-b2').value; const gun = document.getElementById('br-cmp-gun').value; if (b1 === b2) { alert('Farklı iki bölge seçin'); return; } showLoading(); const d1 = await fetch(API_BASE + `/api/gunluk_trend?bolge=${encodeURIComponent(b1)}&donem=Son ${gun} g%C3%BCn`).then(r=>r.json()); const d2 = await fetch(API_BASE + `/api/gunluk_trend?bolge=${encodeURIComponent(b2)}&donem=Son ${gun} g%C3%BCn`).then(r=>r.json()); hideLoading(); if (!d1.yeni || !d2.yeni) { alert('Veri alınamadı'); return; } const tv1 = d1.yeni.reduce((a,b)=>a+b,0), tiy1 = d1.iyilesen.reduce((a,b)=>a+b,0), tvf1 = d1.vefat.reduce((a,b)=>a+b,0); const tv2 = d2.yeni.reduce((a,b)=>a+b,0), tiy2 = d2.iyilesen.reduce((a,b)=>a+b,0), tvf2 = d2.vefat.reduce((a,b)=>a+b,0); const olum1 = tv1 > 0 ? (tvf1/tv1*100).toFixed(2) : '0'; const olum2 = tv2 > 0 ? (tvf2/tv2*100).toFixed(2) : '0'; const c1 = '#00d4ff', c2 = '#f97316'; document.getElementById('br-cmp-th1').textContent = b1; document.getElementById('br-cmp-th1').style.color = c1; document.getElementById('br-cmp-th2').textContent = b2; document.getElementById('br-cmp-th2').style.color = c2; document.getElementById('br-cmp-empty').style.display = 'none'; document.getElementById('br-cmp-result').style.display = 'block'; document.getElementById('br-cmp-stats').innerHTML = `<div class="cmp-stat-card" style="border-color:${c1}30;text-align:center"><div style="font-size:12px;font-weight:700;color:${c1};margin-bottom:8px">${b1}</div><div class="cmp-stat-label">Toplam Vaka</div><div class="cmp-stat-val" style="color:${c1}">${tv1.toLocaleString('tr-TR')}</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px"><div><div class="cmp-stat-label">İyileşen</div><div style="font-size:15px;font-weight:700;color:var(--green)">${tiy1.toLocaleString('tr-TR')}</div></div><div><div class="cmp-stat-label">Vefat</div><div style="font-size:15px;font-weight:700;color:var(--red)">${tvf1.toLocaleString('tr-TR')}</div></div></div></div><div style="display:flex;align-items:center;justify-content:center"><div class="vs-badge">VS</div></div><div class="cmp-stat-card" style="border-color:${c2}30;text-align:center"><div style="font-size:12px;font-weight:700;color:${c2};margin-bottom:8px">${b2}</div><div class="cmp-stat-label">Toplam Vaka</div><div class="cmp-stat-val" style="color:${c2}">${tv2.toLocaleString('tr-TR')}</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px"><div><div class="cmp-stat-label">İyileşen</div><div style="font-size:15px;font-weight:700;color:var(--green)">${tiy2.toLocaleString('tr-TR')}</div></div><div><div class="cmp-stat-label">Vefat</div><div style="font-size:15px;font-weight:700;color:var(--red)">${tvf2.toLocaleString('tr-TR')}</div></div></div></div>`; let c = document.getElementById('brCmpTrendChart'); if (c._ch) c._ch.destroy(); c._ch = new Chart(c, { type:'line', data:{ labels: d1.gunler, datasets:[ { label:b1, data:d1.yeni, borderColor:c1, backgroundColor:c1+'18', tension:.4, pointRadius:0, borderWidth:2, fill:true }, { label:b2, data:d2.yeni, borderColor:c2, backgroundColor:c2+'18', tension:.4, pointRadius:0, borderWidth:2, fill:true } ] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ labels:{ color:'#94a3b8', font:{size:11} } } }, scales:{ x:{ ticks:{color:'#64748b',font:{size:10},maxTicksLimit:8}, grid:{color:'#1e2d45'} }, y:{ ticks:{color:'#64748b',font:{size:10}}, grid:{color:'#1e2d45'} } } } }); let b = document.getElementById('brCmpBarChart'); if (b._ch) b._ch.destroy(); b._ch = new Chart(b, { type:'bar', data:{ labels:[b1,b2], datasets:[ { label:'İyileşen', data:[tiy1,tiy2], backgroundColor:'#22d3a588', borderRadius:5 }, { label:'Vefat', data:[tvf1,tvf2], backgroundColor:'#f43f5e88', borderRadius:5 } ] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ labels:{ color:'#94a3b8', font:{size:11} } } }, scales:{ x:{ ticks:{color:'#64748b'}, grid:{display:false} }, y:{ ticks:{color:'#64748b'}, grid:{color:'#1e2d45'} } } } }); const diff = (a, b, pct=false) => { const d = a - b; const cl = d > 0 ? 'var(--red)' : 'var(--green)'; const sign = d > 0 ? '+' : ''; return `<span style="color:${cl};font-weight:700">${sign}${pct ? d.toFixed(2)+'%' : d.toLocaleString('tr-TR')}</span>`; }; document.getElementById('br-cmp-tbody').innerHTML = `<tr><td style="font-weight:600">Toplam Yeni Vaka</td><td style="color:${c1}">${tv1.toLocaleString('tr-TR')}</td><td style="color:${c2}">${tv2.toLocaleString('tr-TR')}</td><td>${diff(tv1, tv2)}</td></tr><tr><td style="font-weight:600">İyileşen</td><td style="color:var(--green)">${tiy1.toLocaleString('tr-TR')}</td><td style="color:var(--green)">${tiy2.toLocaleString('tr-TR')}</td><td>${diff(tiy1, tiy2)}</td></tr><tr><td style="font-weight:600">Vefat</td><td style="color:var(--red)">${tvf1.toLocaleString('tr-TR')}</td><td style="color:var(--red)">${tvf2.toLocaleString('tr-TR')}</td><td>${diff(tvf1, tvf2)}</td></tr><tr><td style="font-weight:600">Ölüm Oranı (%)</td><td>${olum1}%</td><td>${olum2}%</td><td>${diff(parseFloat(olum1), parseFloat(olum2), true)}</td></tr>`; }
+
+// ========== SAYFA YÖNLENDİRME ==========
+// Sayfa geçiş önbelleği — bir kez yüklenen veri tekrar çekilmez
+const _pageLoaded = {};
+
+async function showPage(name){
+  // Önce sayfayı göster — kullanıcı anında tepki alır
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.sb-item').forEach(i=>i.classList.remove('active'));
+  document.getElementById(`page-${name}`)?.classList.add('active');
+  document.querySelector(`.sb-item[data-page="${name}"]`)?.classList.add('active');
+
+  // Aynı sayfaya tekrar gelindiğinde veriyi yeniden çekme (admin hariç)
+  const skipCache = ['tablolar','vaka-log','admin-panel'];
+  if(_pageLoaded[name] && !skipCache.includes(name)) return;
+  _pageLoaded[name] = true;
+
+  // Arka planda veri yükle — loading overlay gösterme
+  try {
+    if(name==='hastalik-detay') loadHastalikDetay();
+    if(name==='tedbirler')      loadTedbirler();
+    if(name==='personel')       loadPersonel();
+    if(name==='vaka-log')       loadVakaLog();
+    if(name==='dashboard'){     await loadDashboard(); await loadForecast(); await loadDashboardHarita(); }
+    if(name==='kapasite')       await loadKapasite();
+    if(name==='demografik')     await loadDemografik();
+    if(name==='bolge')          await loadBolgeRaporu();
+    if(name==='tablolar')       await applyFilter();
+    if(name==='admin-panel')    await loadAdminPanel();
+  } catch(e){ console.warn('showPage yükleme hatası:', e.message); }
+}
+async function loadDashboard(){
+  let ozet = await fetch(API_BASE + '/api/ozet').then(r=>r.json());
+  document.getElementById('s-total').textContent    = (ozet.toplam_vaka||0).toLocaleString();
+  document.getElementById('s-aktif').textContent    = (ozet.aktif_vaka||0).toLocaleString();
+  document.getElementById('s-iyilesen').textContent = (ozet.toplam_iyilesen||0).toLocaleString();
+  document.getElementById('s-vefat').textContent    = (ozet.toplam_vefat||0).toLocaleString();
+  let donut = await fetch(API_BASE + '/api/hastalik_dagilim').then(r=>r.json());
+  mkDoughnut('donutChart', donut.labels, donut.values, donut.colors);
+  let days=[], now=new Date();
+  for(let i=29;i>=0;i--){ let d=new Date(now); d.setDate(d.getDate()-i); days.push((d.getMonth()+1)+'-'+d.getDate()); }
+  let bolgeDs = ['Marmara','Ege','İç Anadolu','Karadeniz','Akdeniz','Doğu Anadolu','Güneydoğu Anadolu'].map((b,bi)=> ({ label:b, borderColor:['#00d4ff','#22d3a5','#fbbf24','#f43f5e','#a78bfa','#f97316','#ec4899'][bi], backgroundColor:'transparent', data:days.map((_,i)=> Math.round(2800+bi*700+i*12+Math.sin(i*0.4+bi)*200)) }));
+  mkLine('kumChart', days, bolgeDs);
+}
+function openPanel(id){ closeAllPanels(); document.getElementById(id)?.classList.add('open'); document.getElementById('overlay').classList.add('open'); document.body.style.overflow='hidden'; }
+function closeAllPanels(){ document.querySelectorAll('.panel').forEach(p=>p.classList.remove('open')); document.getElementById('overlay').classList.remove('open'); document.body.style.overflow=''; }
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeAllPanels()});
+
+// ========== SON FONKSİYONLAR (Hastalık, Tedbir, Personel, Vaka Log) ==========
+async function loadHastalikDetay() { const rows = await jf('/api/hastalik_detay'); if (!rows || rows.error) return; const COLORS = ['#00d4ff','#f97316','#22d3a5','#fbbf24','#a78bfa']; const html = `<div class="hastalik-grid">${rows.map((h, i) => { const c = COLORS[i % COLORS.length]; const dots = Array.from({length:5}, (_, s) => `<div class="risk-dot" style="background:${s < h.risk_seviyesi ? c : 'var(--border)'}"></div>`).join(''); return `<div class="hastalik-card" style="border-color:${c}20"><div class="hastalik-card-header"><div><div class="hastalik-card-name">${h.hastalik_adi}</div><div class="hastalik-icd">${h.icd10_kodu || '-'}</div></div><div class="risk-dots">${dots}</div></div><div class="hastalik-params"><div class="hastalik-param"><div class="hastalik-param-label">Bulaşma</div><div class="hastalik-param-value">${h.bulasma_sekli || '-'}</div></div><div class="hastalik-param"><div class="hastalik-param-label">Kuluçka</div><div class="hastalik-param-value">${h.ortalama_kulucka || '-'} gün</div></div><div class="hastalik-param"><div class="hastalik-param-label">R₀</div><div class="hastalik-param-value" style="color:${c}">${h.bulasicilik}</div></div><div class="hastalik-param"><div class="hastalik-param-label">Ölüm %</div><div class="hastalik-param-value" style="color:var(--red)">${(h.olumculuk * 100).toFixed(2)}%</div></div></div></div>`; }).join('')}</div>`; document.getElementById('hastalik-detay-container').innerHTML = html; }
+async function loadTedbirler() { const bolge = document.getElementById('td-bolge')?.value || ''; const qs = bolge ? '?bolge=' + encodeURIComponent(bolge) : ''; const rows = await jf('/api/tedbirler' + qs); if (!rows || rows.error || !rows.length) { document.getElementById('tedbirler-container').innerHTML = '<div class="card" style="text-align:center;padding:40px;color:var(--muted)">Kayıt bulunamadı</div>'; return; } const html = `<div class="card" style="padding:0;overflow:hidden"><table class="tedbir-table"><thead><tr><th>Bölge</th><th>Tedbir Adı</th><th>Etki Seviyesi</th><th>Başlangıç</th><th>Bitiş</th></tr></thead><tbody>${rows.map(r => { const ec = r.etki_seviyesi === 'Yüksek' ? 'etki-yuksek' : r.etki_seviyesi === 'Orta' ? 'etki-orta' : 'etki-dusuk'; const devam = r.bitis === 'Devam ediyor'; return `<tr><td style="font-weight:600;color:var(--accent)">${r.bolge}</td><td>${r.tedbir_adi}</td><td><span class="etki-badge ${ec}">${r.etki_seviyesi}</span></td><td style="font-family:monospace;font-size:11px;color:var(--muted)">${r.baslangic}</td><td style="font-family:monospace;font-size:11px;color:${devam ? 'var(--green)' : 'var(--muted)'}">${devam ? '● Devam ediyor' : r.bitis}</td></tr>`; }).join('')}</tbody></table></div>`; document.getElementById('tedbirler-container').innerHTML = html; }
+async function loadPersonel() { const bolge = document.getElementById('ps-bolge')?.value || ''; const unvan = document.getElementById('ps-unvan')?.value || ''; let qs = []; if (bolge) qs.push('bolge=' + encodeURIComponent(bolge)); if (unvan) qs.push('unvan=' + encodeURIComponent(unvan)); const rows = await jf('/api/personel' + (qs.length ? '?' + qs.join('&') : '')); if (!rows || rows.error || !rows.length) { document.getElementById('personel-container').innerHTML = '<div class="card" style="text-align:center;padding:40px;color:var(--muted)">Kayıt bulunamadı</div>'; return; } const html = `<div class="card" style="padding:0;overflow:hidden"><table class="tedbir-table"><thead><tr><th>Ad Soyad</th><th>Unvan</th><th>Departman</th><th>Vardiya</th><th>Hastane</th><th>Bölge</th><th>İşe Başlama</th><th>Durum</th></tr></thead><tbody>${rows.map(r => { const uc = r.unvan === 'Doktor' ? 'unvan-doktor' : r.unvan === 'Hemsire' ? 'unvan-hemsire' : 'unvan-teknisyen'; const aktif = r.aktif ? '<span style="color:var(--green);font-size:10px">● Aktif</span>' : '<span style="color:var(--red);font-size:10px">● Pasif</span>'; return `<tr><td style="font-weight:600">${r.ad_soyad}</td><td><span class="unvan-badge ${uc}">${r.unvan}</span></td><td style="color:var(--muted)">${r.departman}</td><td style="color:var(--muted);font-size:11px">${r.vardiya}</td><td style="font-size:11px">${r.hastane}</td><td style="color:var(--accent);font-size:11px">${r.bolge}</td><td style="font-family:monospace;font-size:11px;color:var(--muted)">${r.tarih}</td><td>${aktif}</td></tr>`; }).join('')}</tbody></table></div>`; document.getElementById('personel-container').innerHTML = html; }
+async function loadVakaLog() { const rows = await jf('/api/vaka_log'); if (!rows || rows.error) { document.getElementById('vaka-log-container').innerHTML = '<div class="card" style="text-align:center;padding:40px;color:var(--muted)">Log kaydı bulunamadı</div>'; return; } const html = `<div class="card" style="margin-bottom:12px;display:flex;align-items:center;gap:16px"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em">Toplam Log:</div><div style="font-size:18px;font-weight:800;color:var(--accent)">${rows.length.toLocaleString('tr-TR')}</div><div style="margin-left:auto;font-size:10px;color:var(--muted)">trg_Vaka_Kontrol TRIGGER tarafından oluşturuldu</div></div><div class="card" style="padding:0;overflow:hidden"><table class="tedbir-table"><thead><tr><th>Log ID</th><th>Bildirim ID</th><th>İşlem Tipi</th><th>İşlem Tarihi</th><th>Eski Vaka</th><th>Yeni Vaka</th></tr></thead><tbody>${rows.slice(0, 100).map(r => { const tc = r.islem_tipi === 'INSERT' ? 'var(--green)' : 'var(--yellow)'; return `<tr><td style="font-family:monospace;color:var(--muted)">#${r.log_id}</td><td style="font-family:monospace;color:var(--accent)">${r.bildirim_id}</td><td><span style="background:${r.islem_tipi === 'INSERT' ? 'rgba(34,211,165,.1)' : 'rgba(251,191,36,.1)'};color:${tc};border:1px solid ${tc}40;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700">${r.islem_tipi}</span></td><td style="font-family:monospace;font-size:11px;color:var(--muted)">${r.islem_tarihi || '-'}</td><td style="font-family:monospace;color:var(--muted)">${r.eski_vaka ?? '-'}</td><td style="font-family:monospace;color:var(--text)">${r.yeni_vaka ?? '-'}</td></tr>`; }).join('')}</tbody></table></div>`; document.getElementById('vaka-log-container').innerHTML = html; }
+
+// ========== YÖNETİCİ PANELİ ==========
+let _hastaneler = [];
+
+async function loadAdminPanel(){
+  const rol = localStorage.getItem('sb_rol');
+  if(rol !== 'admin'){
+    document.getElementById('page-admin-panel').innerHTML = `
+      <div class="page-title">Yönetici Paneli</div>
+      <div class="card" style="text-align:center;padding:60px;color:var(--red)">
+        <div style="font-size:48px;margin-bottom:16px">🔒</div>
+        <div style="font-size:16px;font-weight:700">Bu alana erişim yetkiniz yok.</div>
+        <div style="font-size:13px;color:var(--muted);margin-top:8px">Sadece yöneticiler bu paneli görebilir.</div>
+      </div>`;
+    return;
+  }
+  // Günü bugüne ayarla
+  const bugun = new Date().toISOString().split('T')[0];
+  const avTarih = document.getElementById('av-tarih');
+  const apTarih = document.getElementById('ap-tarih');
+  if(avTarih) avTarih.value = bugun;
+  if(apTarih) apTarih.value = bugun;
+
+  // Hastane listesini yükle
+  try {
+    _hastaneler = await fetch(API_BASE + '/api/admin/hastaneler').then(r=>r.json());
+    const apSel = document.getElementById('ap-hastane');
+    const ahSel = document.getElementById('ah-hastane');
+    const opts  = _hastaneler.map(h=>`<option value="${h.hastane_adi}">${h.hastane_adi} (${h.bolge_adi})</option>`).join('');
+    if(apSel) apSel.innerHTML = opts;
+    if(ahSel){ ahSel.innerHTML = opts; loadHastaneBilgi(); }
+  } catch(e){ console.error(e); }
+}
+
+function switchAdminTab(tab){
+  ['vaka','personel','hastane'].forEach(t=>{
+    document.getElementById('admin-'+t).style.display = t===tab ? 'block' : 'none';
+    const btn = document.getElementById('tab-'+t);
+    if(btn){
+      btn.style.background    = t===tab ? 'var(--accent)' : 'none';
+      btn.style.color         = t===tab ? '#fff' : 'var(--muted)';
+      btn.style.borderColor   = t===tab ? 'var(--accent)' : 'var(--border)';
+    }
+  });
+}
+
+function showAdminMsg(elId, msg, ok=true){
+  const el = document.getElementById(elId);
+  if(!el) return;
+  el.innerHTML = msg;
+  el.style.color = ok ? '#22d3a5' : 'var(--red)';
+  setTimeout(()=>el.innerHTML='', 5000);
+}
+
+async function adminVakaEkle(){
+  const tarih    = document.getElementById('av-tarih').value;
+  const bolge    = document.getElementById('av-bolge').value;
+  const hastalik = document.getElementById('av-hastalik').value;
+  const yas      = document.getElementById('av-yas').value;
+  const cins     = document.getElementById('av-cins').value;
+  const kronik   = document.getElementById('av-kronik').value;
+  const yeni     = parseInt(document.getElementById('av-yeni').value) || 1;
+  const iyilesen = parseInt(document.getElementById('av-iyilesen').value) || 0;
+  const vefat    = parseInt(document.getElementById('av-vefat').value) || 0;
+
+  if(!tarih||!bolge||!hastalik){ showAdminMsg('admin-vaka-mesaj','⚠️ Tüm alanları doldurun.',false); return; }
+
+  try {
+    const r = await fetch(API_BASE+'/api/vaka_bildir',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({tarih, bolge, hastalik, yas, cinsiyet:cins, kronik,
+                            yeni_vaka:yeni, iyilesen_sayisi:iyilesen, vefat_sayisi:vefat})
+    });
+    const d = await r.json();
+    if(d.error||d.message) showAdminMsg('admin-vaka-mesaj','❌ '+( d.error||d.message),false);
+    else showAdminMsg('admin-vaka-mesaj',`✅ Vaka kaydedildi — ${bolge} / ${hastalik} / ${yeni} yeni vaka`);
+  } catch(e){ showAdminMsg('admin-vaka-mesaj','❌ Sunucu hatası: '+e.message,false); }
+}
+
+async function adminPersonelEkle(){
+  const ad_soyad  = document.getElementById('ap-adsoyad').value.trim();
+  const unvan     = document.getElementById('ap-unvan').value;
+  const departman = document.getElementById('ap-departman').value.trim();
+  const vardiya   = document.getElementById('ap-vardiya').value;
+  const hastane   = document.getElementById('ap-hastane').value;
+  const tarih     = document.getElementById('ap-tarih').value;
+
+  if(!ad_soyad||!departman||!tarih){ showAdminMsg('admin-personel-mesaj','⚠️ Tüm alanları doldurun.',false); return; }
+
+  try {
+    const r = await fetch(API_BASE+'/api/admin/personel_ekle',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ad_soyad, unvan, departman, vardiya, hastane, ise_baslama_tarihi:tarih})
+    });
+    const d = await r.json();
+    if(d.success) showAdminMsg('admin-personel-mesaj', d.mesaj);
+    else showAdminMsg('admin-personel-mesaj','❌ '+(d.message||'Hata'),false);
+  } catch(e){ showAdminMsg('admin-personel-mesaj','❌ Sunucu hatası: '+e.message,false); }
+}
+
+function loadHastaneBilgi(){
+  const sel  = document.getElementById('ah-hastane');
+  if(!sel||!_hastaneler.length) return;
+  const h = _hastaneler.find(x=>x.hastane_adi===sel.value);
+  if(!h) return;
+  document.getElementById('ah-yatak').value   = h.yatak_kapasitesi   || 0;
+  document.getElementById('ah-ybu').value     = h.yogun_bakim_kapasitesi || 0;
+  document.getElementById('ah-solunum').value = h.solunum_cihazi     || 0;
+  document.getElementById('ah-personel').value= h.aktif_personel_sayisi || 0;
+}
+
+async function adminHastaneGuncelle(){
+  const hastane_adi         = document.getElementById('ah-hastane').value;
+  const yatak_kapasitesi    = document.getElementById('ah-yatak').value;
+  const yogun_bakim_kapasitesi = document.getElementById('ah-ybu').value;
+  const solunum_cihazi      = document.getElementById('ah-solunum').value;
+  const aktif_personel_sayisi = document.getElementById('ah-personel').value;
+
+  try {
+    const r = await fetch(API_BASE+'/api/admin/hastane_guncelle',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({hastane_adi, yatak_kapasitesi, yogun_bakim_kapasitesi,
+                            solunum_cihazi, aktif_personel_sayisi})
+    });
+    const d = await r.json();
+    if(d.success) showAdminMsg('admin-hastane-mesaj', d.mesaj);
+    else showAdminMsg('admin-hastane-mesaj','❌ '+(d.message||'Hata'),false);
+  } catch(e){ showAdminMsg('admin-hastane-mesaj','❌ Sunucu hatası: '+e.message,false); }
+}
+
+window.addEventListener('DOMContentLoaded', async ()=>{ _pageLoaded['dashboard']=true; await loadDashboard(); await loadForecast(); await loadDashboardHarita(); });
+</script>
+</body>
+</html>

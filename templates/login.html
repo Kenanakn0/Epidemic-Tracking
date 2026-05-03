@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="tr" data-theme="dark">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Giriş — SalgınTakip KDS</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0b0f1a;--surface:#111827;--surface2:#1a2235;--border:#1e2d45;
+  --text:#e2e8f0;--muted:#64748b;--muted2:#94a3b8;
+  --accent:#00d4ff;--accent2:#0ea5e9;--green:#22d3a5;--red:#f43f5e;
+}
+
+html,body{
+  height:100%;background:var(--bg);color:var(--text);
+  font-family:'Segoe UI',system-ui,sans-serif;font-size:13px;
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;
+}
+
+/* ── Animasyonlu arka plan parçacıkları ── */
+.bg-particles{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.particle{
+  position:absolute;border-radius:50%;opacity:0;
+  animation:float linear infinite;
+}
+@keyframes float{
+  0%  {transform:translateY(100vh) scale(0);opacity:0}
+  10% {opacity:.4}
+  90% {opacity:.15}
+  100%{transform:translateY(-10vh) scale(1.2);opacity:0}
+}
+
+/* ── Izgara çizgileri ── */
+.bg-grid{
+  position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(0,212,255,.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,.04) 1px, transparent 1px);
+  background-size:48px 48px;
+  animation:grid-pan 20s linear infinite;
+}
+@keyframes grid-pan{0%{background-position:0 0}100%{background-position:48px 48px}}
+
+/* ── Sol bilgi paneli ── */
+.layout{
+  position:relative;z-index:1;display:flex;
+  width:min(960px,96vw);min-height:540px;
+  border-radius:20px;overflow:hidden;
+  box-shadow:0 40px 80px rgba(0,0,0,.7), 0 0 0 1px rgba(0,212,255,.12);
+  animation:card-in .6s cubic-bezier(.22,1,.36,1) both;
+}
+@keyframes card-in{
+  from{opacity:0;transform:translateY(32px) scale(.97)}
+  to  {opacity:1;transform:translateY(0) scale(1)}
+}
+
+.info-panel{
+  flex:1;padding:48px 40px;
+  background:linear-gradient(135deg,#0d1829 0%,#0b1520 60%,#071018 100%);
+  border-right:1px solid rgba(0,212,255,.1);
+  display:flex;flex-direction:column;justify-content:space-between;
+  position:relative;overflow:hidden;
+}
+.info-panel::before{
+  content:'';position:absolute;top:-80px;right:-80px;
+  width:300px;height:300px;border-radius:50%;
+  background:radial-gradient(circle,rgba(0,212,255,.08) 0%,transparent 70%);
+  pointer-events:none;
+}
+.info-brand{display:flex;align-items:center;gap:14px;margin-bottom:40px}
+.brand-icon{
+  width:52px;height:52px;border-radius:14px;flex-shrink:0;
+  background:linear-gradient(135deg,rgba(0,212,255,.2),rgba(14,165,233,.1));
+  border:1px solid rgba(0,212,255,.35);
+  display:flex;align-items:center;justify-content:center;font-size:24px;
+  box-shadow:0 0 20px rgba(0,212,255,.15);
+  animation:icon-pulse 3s ease-in-out infinite;
+}
+@keyframes icon-pulse{
+  0%,100%{box-shadow:0 0 20px rgba(0,212,255,.15)}
+  50%    {box-shadow:0 0 35px rgba(0,212,255,.35)}
+}
+.brand-title{font-size:20px;font-weight:800;color:var(--accent);letter-spacing:-.4px}
+.brand-sub{font-size:11px;color:var(--muted);margin-top:3px}
+
+.info-stats{display:flex;flex-direction:column;gap:14px;flex:1;justify-content:center}
+.stat-item{
+  display:flex;align-items:center;gap:14px;
+  padding:14px 16px;border-radius:12px;
+  background:rgba(0,212,255,.04);border:1px solid rgba(0,212,255,.08);
+  animation:stat-in .5s ease both;
+}
+.stat-item:nth-child(1){animation-delay:.1s}
+.stat-item:nth-child(2){animation-delay:.2s}
+.stat-item:nth-child(3){animation-delay:.3s}
+@keyframes stat-in{from{opacity:0;transform:translateX(-16px)}to{opacity:1;transform:none}}
+.stat-icon-wrap{
+  width:36px;height:36px;border-radius:9px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:16px;
+}
+.stat-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px}
+.stat-val{font-size:16px;font-weight:800;color:var(--text)}
+
+.info-footer{font-size:10px;color:var(--muted);line-height:1.6;padding-top:20px;border-top:1px solid rgba(30,45,69,.6)}
+
+/* ── Sağ giriş formu ── */
+.form-panel{
+  width:420px;flex-shrink:0;padding:48px 40px;
+  background:var(--surface);
+  display:flex;flex-direction:column;justify-content:center;
+}
+.form-title{font-size:22px;font-weight:800;color:var(--text);letter-spacing:-.4px;margin-bottom:4px}
+.form-sub{font-size:12px;color:var(--muted);margin-bottom:32px}
+
+.field{margin-bottom:18px;position:relative}
+.field label{
+  display:block;font-size:10px;font-weight:700;color:var(--muted2);
+  text-transform:uppercase;letter-spacing:.08em;margin-bottom:7px
+}
+.field-wrap{position:relative}
+.field-icon{
+  position:absolute;left:14px;top:50%;transform:translateY(-50%);
+  font-size:14px;pointer-events:none;opacity:.5;
+}
+input{
+  width:100%;padding:12px 14px 12px 40px;
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:10px;color:var(--text);font-size:13px;outline:none;
+  transition:border-color .2s, box-shadow .2s;
+}
+input:focus{
+  border-color:var(--accent);
+  box-shadow:0 0 0 3px rgba(0,212,255,.1);
+}
+input::placeholder{color:var(--muted)}
+
+.rol-label{font-size:10px;font-weight:700;color:var(--muted2);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;display:block}
+.rol-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:24px}
+.rol-btn{
+  padding:10px 6px;border-radius:10px;border:1px solid var(--border);
+  background:var(--surface2);color:var(--muted2);cursor:pointer;
+  font-size:11px;font-weight:600;text-align:center;transition:all .18s;
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+}
+.rol-btn span.ri{font-size:18px}
+.rol-btn.active{
+  background:rgba(0,212,255,.1);color:var(--accent);
+  border-color:rgba(0,212,255,.4);
+  box-shadow:0 0 12px rgba(0,212,255,.1);
+}
+.rol-btn:hover:not(.active){border-color:var(--muted);color:var(--text)}
+
+.btn{
+  width:100%;padding:14px;
+  background:linear-gradient(135deg,var(--accent2),var(--accent));
+  border:none;border-radius:10px;color:#000;font-size:13px;font-weight:800;
+  cursor:pointer;transition:all .2s;letter-spacing:.03em;
+  position:relative;overflow:hidden;
+}
+.btn::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.15),transparent);
+  transform:translateX(-100%);transition:transform .4s;
+}
+.btn:hover::after{transform:translateX(100%)}
+.btn:hover{box-shadow:0 6px 20px rgba(0,212,255,.35)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn:disabled::after{display:none}
+
+/* Yükleniyor spinner */
+.spinner{
+  display:inline-block;width:14px;height:14px;
+  border:2px solid rgba(0,0,0,.3);border-top-color:#000;
+  border-radius:50%;animation:spin .7s linear infinite;
+  margin-right:8px;vertical-align:middle;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.msg{
+  margin-top:14px;padding:11px 14px;border-radius:10px;
+  font-size:12px;display:none;animation:msg-in .25s ease;
+}
+@keyframes msg-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.msg.error{background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.3);color:#fca5a5}
+.msg.ok{background:rgba(34,211,165,.1);border:1px solid rgba(34,211,165,.3);color:#6ee7b7}
+
+.divider{display:flex;align-items:center;gap:10px;margin:20px 0 0;color:var(--muted);font-size:10px}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* Canlı durum indikatörü */
+.live-status{
+  display:flex;align-items:center;gap:8px;
+  margin-top:16px;padding:8px 12px;border-radius:8px;
+  background:rgba(34,211,165,.06);border:1px solid rgba(34,211,165,.15);
+  font-size:11px;color:var(--muted2);
+}
+.live-dot{
+  width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0;
+  animation:blink 2s ease-in-out infinite;
+}
+@keyframes blink{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(34,211,165,.4)}50%{opacity:.7;box-shadow:0 0 0 4px transparent}}
+
+/* Mobil responsive */
+@media(max-width:700px){
+  .info-panel{display:none}
+  .form-panel{width:100%;padding:36px 28px}
+  .layout{width:96vw}
+}
+</style>
+</head>
+<body>
+
+<!-- Arka plan katmanları -->
+<div class="bg-grid"></div>
+<div class="bg-particles" id="particles"></div>
+
+<div class="layout">
+  <!-- Sol bilgi paneli -->
+  <div class="info-panel">
+    <div>
+      <div class="info-brand">
+        <div class="brand-icon">🦠</div>
+        <div>
+          <div class="brand-title">SalgınTakip KDS</div>
+          <div class="brand-sub">Karar Destek Sistemi — v1.5</div>
+        </div>
+      </div>
+      <div class="info-stats">
+        <div class="stat-item">
+          <div class="stat-icon-wrap" style="background:rgba(0,212,255,.1)">📊</div>
+          <div>
+            <div class="stat-label">Gerçek Zamanlı İzleme</div>
+            <div class="stat-val">7 Bölge · 81 İl</div>
+          </div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-icon-wrap" style="background:rgba(34,211,165,.1)">🏥</div>
+          <div>
+            <div class="stat-label">Hastane Kapasitesi</div>
+            <div class="stat-val">Anlık Doluluk Takibi</div>
+          </div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-icon-wrap" style="background:rgba(167,139,250,.1)">🔬</div>
+          <div>
+            <div class="stat-label">Epidemiyolojik Analiz</div>
+            <div class="stat-val">ARIMA · R₀ · KÖO</div>
+          </div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-icon-wrap" style="background:rgba(251,191,36,.1)">🛡️</div>
+          <div>
+            <div class="stat-label">Tedbir Yönetimi</div>
+            <div class="stat-val">Politika & Müdahale</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="info-footer">
+      T.C. Sağlık Bakanlığı — Halk Sağlığı Genel Müdürlüğü<br>
+      Bu sistem yetkili personele özeldir. Yetkisiz erişim yasaktır.
+    </div>
+  </div>
+
+  <!-- Sağ form -->
+  <div class="form-panel">
+    <div class="form-title">Hoş Geldiniz</div>
+    <div class="form-sub">Sisteme erişmek için kimlik bilgilerinizi girin</div>
+
+    <div class="field">
+      <label>E-posta</label>
+      <div class="field-wrap">
+        <span class="field-icon">✉️</span>
+        <input type="email" id="email" placeholder="ornek@saglik.gov.tr" autocomplete="username"/>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Şifre</label>
+      <div class="field-wrap">
+        <span class="field-icon">🔒</span>
+        <input type="password" id="password" placeholder="••••••••" autocomplete="current-password"/>
+      </div>
+    </div>
+
+    <span class="rol-label">Rol Seçin</span>
+    <div class="rol-grid">
+      <div class="rol-btn active" data-rol="admin"    onclick="secRol(this)">
+        <span class="ri">⚙️</span>Yönetici
+      </div>
+      <div class="rol-btn"        data-rol="doktor"   onclick="secRol(this)">
+        <span class="ri">🩺</span>Doktor
+      </div>
+      <div class="rol-btn"        data-rol="vatandas" onclick="secRol(this)">
+        <span class="ri">👤</span>Vatandaş
+      </div>
+    </div>
+
+    <button class="btn" id="btn" onclick="girisYap()">Sisteme Giriş Yap</button>
+    <div class="msg" id="msg"></div>
+
+    <div class="live-status">
+      <div class="live-dot"></div>
+      Sistem çevrimiçi · Güvenli bağlantı aktif
+    </div>
+  </div>
+</div>
+
+<script>
+// Arka plan parçacıkları
+(function(){
+  const container = document.getElementById('particles');
+  const colors = ['#00d4ff','#0ea5e9','#22d3a5','#a78bfa','#fbbf24'];
+  for(let i=0;i<28;i++){
+    const p = document.createElement('div');
+    p.className = 'particle';
+    const size = Math.random()*6+3;
+    const color = colors[Math.floor(Math.random()*colors.length)];
+    p.style.cssText = `
+      width:${size}px;height:${size}px;
+      left:${Math.random()*100}%;
+      background:${color};
+      box-shadow:0 0 ${size*2}px ${color};
+      animation-duration:${Math.random()*12+8}s;
+      animation-delay:${Math.random()*10}s;
+    `;
+    container.appendChild(p);
+  }
+})();
+
+let secilen = 'admin';
+
+function secRol(el){
+  document.querySelectorAll('.rol-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  secilen = el.dataset.rol;
+}
+
+function mesaj(txt, tip){
+  const el = document.getElementById('msg');
+  el.innerHTML = txt;
+  el.className = 'msg ' + (tip==='ok' ? 'ok' : 'error');
+  el.style.display = 'block';
+}
+
+document.addEventListener('keydown', e => { if(e.key==='Enter') girisYap(); });
+
+// Input focus animasyonu
+document.querySelectorAll('input').forEach(inp => {
+  inp.addEventListener('focus', ()=>inp.parentElement.style.transform='scale(1.01)');
+  inp.addEventListener('blur',  ()=>inp.parentElement.style.transform='');
+});
+
+async function girisYap(){
+  const email    = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const btn      = document.getElementById('btn');
+  if(!email||!password){ mesaj('⚠️ E-posta ve şifre boş bırakılamaz.'); return; }
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Doğrulanıyor…';
+  try {
+    const r = await fetch('/api/login', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({email, password, role: secilen})
+    });
+    const d = await r.json();
+    if(d.success){
+      if(d.access_token) localStorage.setItem('sb_token', d.access_token);
+      if(d.rol)          localStorage.setItem('sb_rol',   d.rol);
+      btn.innerHTML = '✅ Giriş Başarılı';
+      btn.style.background = 'linear-gradient(135deg,#059669,#22d3a5)';
+      mesaj('✅ Giriş başarılı, yönlendiriliyor…', 'ok');
+      setTimeout(()=>{ window.location.href = d.redirect||'/'; }, 400);
+    } else {
+      mesaj('❌ ' + (d.message||'Giriş başarısız.'));
+      btn.disabled = false;
+      btn.innerHTML = 'Sisteme Giriş Yap';
+      // Sallama animasyonu
+      btn.style.animation = 'none';
+      btn.offsetHeight;
+      btn.style.animation = 'shake .4s ease';
+    }
+  } catch(e){
+    mesaj('❌ Sunucuya bağlanılamadı: ' + e.message);
+    btn.disabled = false;
+    btn.innerHTML = 'Sisteme Giriş Yap';
+  }
+}
+</script>
+<style>
+@keyframes shake{
+  0%,100%{transform:translateX(0)}
+  20%{transform:translateX(-8px)}
+  40%{transform:translateX(8px)}
+  60%{transform:translateX(-5px)}
+  80%{transform:translateX(5px)}
+}
+</style>
+</body>
+</html>
