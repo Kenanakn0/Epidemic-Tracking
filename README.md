@@ -10,7 +10,8 @@
 > Gerçek zamanlı vaka takibi, hastane kapasite yönetimi, demografik risk analizi ve tahmine dayalı karar destek arayüzü.
 
 ![Dashboard Önizleme](https://via.placeholder.com/800x400?text=Dashboard+Ekran+G%C3%B6r%C3%BCnt%C3%BCsü)  
-*(Projeyi çalıştırdıktan sonra ekran görüntüsü ekleyin)*
+*(<img width="1621" height="908" alt="image" src="https://github.com/user-attachments/assets/d29dbb2c-ad77-4102-a644-0576c6347fe4" />
+)*
 
 ---
 
